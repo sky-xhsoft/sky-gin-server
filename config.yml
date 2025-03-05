@@ -18,11 +18,11 @@ System:
 
 #数据Mysql
 Mysql:
-    dsn: "root:abc123@tcp(localhost:3306)/xh-framework?charset=utf8mb4&parseTime=true&loc=Local"
+    dsn: "root:Abc123@tcp(localhost:3306)/jeecg-boot?charset=utf8mb4&parseTime=true&loc=Local"
 
 #缓存 Redis
 Redis:
     addr: localhost
-    password:
+    password: Abc123
     db: 0
     port: 6379
