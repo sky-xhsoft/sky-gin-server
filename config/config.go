@@ -20,7 +20,7 @@ type Config struct {
 
 	Mysql Mysql `mapstructure:"Mysql" json:"Mysql" yaml:"Mysql"` //Mysql配置文件
 
-	System System `mapstructure:"System" json:"System" yaml:"System"` //redis配置文件
+	System System `mapstructure:"System" json:"System" yaml:"System"` //system配置文件
 }
 
 type Mysql struct {

@@ -10,14 +10,16 @@ package main
 
 import (
 	"context"
+	"github.com/gin-gonic/gin"
 	"github.com/sky-xhsoft/sky-gin-server/config"
 	"github.com/sky-xhsoft/sky-gin-server/core"
+	"github.com/sky-xhsoft/sky-gin-server/handlers"
 	"github.com/sky-xhsoft/sky-gin-server/pkg/log"
 	"github.com/sky-xhsoft/sky-gin-server/store"
 	"go.uber.org/fx"
+	"net/http"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 	"time"
 )
@@ -29,14 +31,16 @@ type Lifecycle struct {
 }
 
 // OnStart 应用程序启动时执行
-func (l *Lifecycle) OnStart(context.Context) error {
+func (l *Lifecycle) OnStart(ctx context.Context, srv *http.Server) error {
 	logger.Info("AppLifecycle OnStart")
+	srv.ListenAndServe()
 	return nil
 }
 
 // OnStop 应用程序停止时执行
-func (l *Lifecycle) OnStop(context.Context) error {
+func (l *Lifecycle) OnStop(ctx context.Context, srv *http.Server) error {
 	logger.Info("AppLifecycle OnStop")
+	srv.Shutdown(ctx)
 	os.Exit(0)
 	return nil
 }
@@ -47,7 +51,7 @@ func NewAppLifeCycle() *Lifecycle {
 
 func main() {
 	// 使用 WaitGroup 等待应用所有 goroutine 完成
-	var wg sync.WaitGroup
+	//var wg sync.WaitGroup
 
 	app := fx.New(
 		//初始化配置应用配置
@@ -67,32 +71,26 @@ func main() {
 		//提供缓存服务
 		fx.Provide(store.NewRedis),
 
-		// 创建应用服务
-		fx.Provide(core.NewServer),
+		fx.Provide(gin.New),
 
-		fx.Invoke(func(s *core.Server, c *config.Config) {
-			wg.Add(1)
-			go func() {
-				defer wg.Done() // 确保 goroutine 执行结束后完成通知
-
-				logger.Info("Starting application server...")
-				if err := s.Run(c); err != nil {
-					logger.Error("Server failed:", err)
-					os.Exit(0) // 服务失败则退出
-				}
-			}()
-		}),
+		core.ServerModule,
+		core.RoutesModule,
+		handlers.SysUserHandlerModule,
 
 		fx.Provide(NewAppLifeCycle),
 
 		// 注册生命周期回调函数
-		fx.Invoke(func(lifecycle fx.Lifecycle, lc *Lifecycle) {
+		fx.Invoke(func(lifecycle fx.Lifecycle, lc *Lifecycle, s *core.Server) {
+			srv := &http.Server{
+				Addr:    s.Config.System.Port,
+				Handler: s.Engine,
+			}
 			lifecycle.Append(fx.Hook{
 				OnStart: func(ctx context.Context) error {
-					return lc.OnStart(ctx)
+					return lc.OnStart(ctx, srv)
 				},
 				OnStop: func(ctx context.Context) error {
-					return lc.OnStop(ctx)
+					return lc.OnStop(ctx, srv)
 				},
 			})
 		}),
