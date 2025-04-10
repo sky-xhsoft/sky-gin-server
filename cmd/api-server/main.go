@@ -11,12 +11,15 @@ package main
 import (
 	"context"
 	"github.com/gin-gonic/gin"
+	"github.com/go-redis/redis/v8"
 	"github.com/sky-xhsoft/sky-gin-server/config"
 	"github.com/sky-xhsoft/sky-gin-server/core"
 	"github.com/sky-xhsoft/sky-gin-server/handlers"
 	"github.com/sky-xhsoft/sky-gin-server/pkg/log"
 	"github.com/sky-xhsoft/sky-gin-server/store"
 	"go.uber.org/fx"
+	"go.uber.org/zap"
+	"gorm.io/gorm"
 	"net/http"
 	"os"
 	"os/signal"
@@ -75,7 +78,17 @@ func main() {
 
 		core.ServerModule,
 		core.RoutesModule,
-		handlers.SysUserHandlerModule,
+
+		//支持handlers注入
+		fx.Invoke(func(rb *core.RouteBinder, db *gorm.DB, redis *redis.Client, logger *zap.SugaredLogger, cfg *config.Config) {
+			appCtx := &core.AppContext{
+				DB:     db,
+				Redis:  redis,
+				Logger: logger,
+				Config: cfg,
+			}
+			handlers.LoadHandlers(rb, appCtx)
+		}),
 
 		fx.Provide(NewAppLifeCycle),
 
