@@ -39,6 +39,14 @@ func Fail(c *gin.Context, msg string) {
 	})
 }
 
+func FailWithData(c *gin.Context, msg string, data interface{}) {
+	c.JSON(http.StatusOK, Response{
+		Code: CodeError,
+		Msg:  msg,
+		Data: data,
+	})
+}
+
 func WithCode(c *gin.Context, code int, msg string, data interface{}) {
 	c.JSON(http.StatusOK, Response{
 		Code: code,

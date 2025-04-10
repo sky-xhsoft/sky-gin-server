@@ -59,8 +59,8 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}
 
 	tk := token.GenerateToken()
-	if err := token.Save(h.redis, tk, user); err != nil {
-		response.Fail(c, "Token 生成失败")
+	if err := token.SaveUser(h.redis, tk, &user); err != nil {
+		response.FailWithData(c, "Token 生成失败", err)
 		return
 	}
 
@@ -72,4 +72,26 @@ func (h *AuthHandler) Login(c *gin.Context) {
 			"trueName": user.TrueName,
 		},
 	})
+}
+
+func (h *AuthHandler) Logout(c *gin.Context) {
+	tokenStr := c.Query("token")
+
+	//如果可以从url中获取token 则删除对应token
+	//否则当前登录用户推出
+	if tokenStr == "" {
+		tokenStr = c.GetHeader("token")
+	}
+
+	if tokenStr == "" {
+		response.Fail(c, "注销失败:token 未空")
+		return
+	}
+
+	if err := token.DeleteToken(h.redis, tokenStr); err != nil {
+		response.Fail(c, "注销失败: "+err.Error())
+		return
+	}
+
+	response.Ok(c, "已退出登录")
 }

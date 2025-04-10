@@ -14,10 +14,10 @@ import (
 	"github.com/sky-xhsoft/sky-gin-server/config"
 	"github.com/sky-xhsoft/sky-gin-server/middleware"
 	"github.com/sky-xhsoft/sky-gin-server/pkg/log"
+	"github.com/sky-xhsoft/sky-gin-server/routers"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"net/http"
 )
 
 var logger = log.GetLogger()
@@ -47,8 +47,11 @@ var ServerModule = fx.Module("Server",
 
 	fx.Invoke(func(s *Server) {
 		s.Engine.Use(middleware.GinLogger(s.Log), gin.Recovery())
-		s.Engine.GET("/ping", func(c *gin.Context) {
-			c.JSON(http.StatusOK, gin.H{"message": "pong"})
-		})
+	}),
+
+	//支持用户手动routers注入
+	fx.Invoke(func(s *Server) {
+		routers.SetRedis(s.RedisClient) // 提供给权限中间件用
+		routers.Load(s.Engine)          // 加载所有注册模块路由
 	}),
 )

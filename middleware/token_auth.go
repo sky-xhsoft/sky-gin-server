@@ -24,14 +24,15 @@ func TokenAuth(redisClient *redis.Client) gin.HandlerFunc {
 			return
 		}
 
-		userID, err := token.Get(redisClient, t)
+		user, err := token.GetUser(redisClient, t)
 		if err != nil {
 			response.WithCode(c, 401, "Token 无效或已过期", nil)
 			c.Abort()
 			return
 		}
 
-		c.Set("User", userID) // 注入上下文
+		c.Set("User", user) // 注入上下文
+		c.Set("token", t)
 		c.Next()
 	}
 }
