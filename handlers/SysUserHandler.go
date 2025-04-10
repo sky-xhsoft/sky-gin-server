@@ -3,7 +3,7 @@ package handlers
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/sky-xhsoft/sky-gin-server/core"
-	"github.com/sky-xhsoft/sky-gin-server/pkg/response"
+	"github.com/sky-xhsoft/sky-gin-server/pkg/ecode"
 	"gorm.io/gorm"
 )
 
@@ -14,17 +14,17 @@ type SysUserHandler struct {
 func (h *SysUserHandler) GetUserByID(c *gin.Context) {
 	id := c.Query("id")
 	if id == "" {
-		response.Fail(c, "id 参数不能为空")
+		ecode.ErrorResp(c, ecode.ErrInvalidParam)
 		return
 	}
 
 	var result map[string]interface{}
 	if err := h.Db.Raw("SELECT * FROM sys_user WHERE id = ?", id).Scan(&result).Error; err != nil {
-		response.Fail(c, err.Error())
+		ecode.Resp(c, ecode.ErrRequest, err.Error())
 		return
 	}
 
-	response.Ok(c, result)
+	ecode.SuccessResp(c, result)
 }
 
 func init() {

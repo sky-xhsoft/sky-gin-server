@@ -13,6 +13,7 @@ import (
 	"github.com/go-redis/redis/v8"
 	"github.com/sky-xhsoft/sky-gin-server/core"
 	"github.com/sky-xhsoft/sky-gin-server/models"
+	"github.com/sky-xhsoft/sky-gin-server/pkg/ecode"
 	"github.com/sky-xhsoft/sky-gin-server/pkg/hash"
 	"github.com/sky-xhsoft/sky-gin-server/pkg/response"
 	"github.com/sky-xhsoft/sky-gin-server/pkg/token"
@@ -43,24 +44,24 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		Password string `json:"password"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, "参数格式错误")
+		ecode.ErrorResp(c, ecode.ErrInvalidParam)
 		return
 	}
 
 	var user models.SysUser
 	if err := h.db.Where("USERNAME = ? AND IS_ACTIVE = 'Y'", req.Username).First(&user).Error; err != nil {
-		response.WithCode(c, 401, "用户不存在或被禁用", nil)
+		ecode.ErrorResp(c, ecode.ErrUserNotFound)
 		return
 	}
 
 	if !hash.CheckPassword(user.Password, req.Password) {
-		response.WithCode(c, 401, "密码错误", nil)
+		ecode.ErrorResp(c, ecode.ErrPasswordWrong)
 		return
 	}
 
 	tk := token.GenerateToken()
 	if err := token.SaveUser(h.redis, tk, &user); err != nil {
-		response.FailWithData(c, "Token 生成失败", err)
+		ecode.ErrorResp(c, ecode.ErrTokenCreate)
 		return
 	}
 
@@ -84,14 +85,14 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	}
 
 	if tokenStr == "" {
-		response.Fail(c, "注销失败:token 未空")
+		ecode.ErrorResp(c, ecode.ErrTokenEmpty)
 		return
 	}
 
 	if err := token.DeleteToken(h.redis, tokenStr); err != nil {
-		response.Fail(c, "注销失败: "+err.Error())
+		response.WithCode(c, ecode.ErrTokenError, err.Error(), nil)
 		return
 	}
 
-	response.Ok(c, "已退出登录")
+	ecode.SuccessResp(c, nil)
 }

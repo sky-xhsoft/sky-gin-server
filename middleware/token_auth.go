@@ -11,7 +11,7 @@ package middleware
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
-	"github.com/sky-xhsoft/sky-gin-server/pkg/response"
+	"github.com/sky-xhsoft/sky-gin-server/pkg/ecode"
 	"github.com/sky-xhsoft/sky-gin-server/pkg/token"
 )
 
@@ -19,14 +19,14 @@ func TokenAuth(redisClient *redis.Client) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		t := c.GetHeader("Token")
 		if t == "" {
-			response.WithCode(c, 401, "缺少 Token", nil)
+			ecode.ErrorResp(c, ecode.ErrUnauthorized)
 			c.Abort()
 			return
 		}
 
 		user, err := token.GetUser(redisClient, t)
 		if err != nil {
-			response.WithCode(c, 401, "Token 无效或已过期", nil)
+			ecode.ErrorResp(c, ecode.ErrTokenExpired)
 			c.Abort()
 			return
 		}

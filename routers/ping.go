@@ -10,7 +10,7 @@ package routers
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/sky-xhsoft/sky-gin-server/pkg/response"
+	"github.com/sky-xhsoft/sky-gin-server/pkg/ecode"
 )
 
 func init() {
@@ -20,5 +20,5 @@ func init() {
 }
 
 func demo(c *gin.Context) {
-	response.Ok(c, nil)
+	ecode.SuccessResp(c, nil)
 }
