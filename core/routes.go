@@ -60,9 +60,11 @@ func (rb *RouteBinder) LoadRoutes() error {
 
 	// 权限类型对应的中间件
 	middlewareMap := map[string][]gin.HandlerFunc{
-		"P": {}, // Public
-		"S": {middleware.TokenAuth(rb.redis)},
-		"D": {middleware.TokenAuth(rb.redis)}, // TODO: future: 加数据权限验证中间件
+		"P": {middleware.WithTransaction(rb.db)}, // Public
+		"S": {middleware.TokenAuth(rb.redis),
+			middleware.WithTransaction(rb.db)},
+		"D": {middleware.TokenAuth(rb.redis),
+			middleware.WithTransaction(rb.db)}, // TODO: future: 加数据权限验证中间件
 	}
 
 	// 绑定新路由
