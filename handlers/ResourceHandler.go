@@ -34,6 +34,7 @@ func (h *ResourceHandler) SetOption(ctx *core.AppContext) {
 }
 
 // 创建资源组
+// 创建资源组
 func (h *ResourceHandler) CreateResource(c *gin.Context) {
 	tx := utils.GetTx(c, h.db)
 
@@ -42,6 +43,24 @@ func (h *ResourceHandler) CreateResource(c *gin.Context) {
 		ecode.ErrorResp(c, ecode.ErrInvalidParam)
 		return
 	}
+
+	if req.ProjectId == 0 {
+		ecode.Resp(c, ecode.ErrInvalidParam, "缺少项目ID")
+		return
+	}
+
+	// 验证项目是否存在
+	var project models.ChrProject
+	if err := tx.First(&project, "ID = ? AND IS_ACTIVE = 'Y'", req.ProjectId).Error; err != nil {
+		ecode.Resp(c, ecode.ErrInvalidParam, "指定项目不存在")
+		return
+	}
+
+	if req.Name == "" {
+		ecode.Resp(c, ecode.ErrInvalidParam, "资源组名称不能为空")
+		return
+	}
+
 	utils.FillCreateMeta(c, &req)
 
 	if err := tx.Create(&req).Error; err != nil {
@@ -61,6 +80,24 @@ func (h *ResourceHandler) UpdateResource(c *gin.Context) {
 		ecode.Resp(c, ecode.ErrInvalidParam, "缺少资源ID")
 		return
 	}
+
+	if req.ProjectId == 0 {
+		ecode.Resp(c, ecode.ErrInvalidParam, "缺少项目ID")
+		return
+	}
+
+	// 验证项目是否存在
+	var project models.ChrProject
+	if err := tx.First(&project, "ID = ? AND IS_ACTIVE = 'Y'", req.ProjectId).Error; err != nil {
+		ecode.Resp(c, ecode.ErrInvalidParam, "指定项目不存在")
+		return
+	}
+
+	if req.Name == "" {
+		ecode.Resp(c, ecode.ErrInvalidParam, "资源组名称不能为空")
+		return
+	}
+
 	utils.FillUpdateMeta(c, &req)
 
 	if err := tx.Model(&models.ChrResource{}).Where("ID = ?", req.ID).Updates(&req).Error; err != nil {

@@ -25,22 +25,36 @@ func FillUpdateMeta(c *gin.Context, model any) {
 
 func fillMeta(c *gin.Context, model any, isCreate bool) {
 	user := getUser(c)
-	now := time.Now().Format("2006-01-02 15:04:05")
+	//now := time.Now().Format("2006-01-02 15:04:05")
 
 	v := reflect.ValueOf(model).Elem()
-	base := v.FieldByName("BaseModel")
+	base := v.FieldByName("Base")
 	if !base.IsValid() {
 		return
 	}
 
 	if isCreate {
 		base.FieldByName("CreateBy").SetString(user.Username)
-		base.FieldByName("CreateTime").SetString(now)
+
+		//设置创建时间
+		val := reflect.ValueOf(&base).Elem()
+		field := val.FieldByName("CreateTime")
+		if field.IsValid() && field.CanSet() && field.Type().AssignableTo(reflect.TypeOf(time.Time{})) {
+			field.Set(reflect.ValueOf(time.Now()))
+		}
+
 		base.FieldByName("IsActive").SetString("Y")
 		base.FieldByName("SysCompanyId").SetUint(uint64(user.SysCompanyId))
 	}
 	base.FieldByName("UpdateBy").SetString(user.Username)
-	base.FieldByName("UpdateTime").SetString(now)
+
+	//设置更新时间
+	val := reflect.ValueOf(&base).Elem()
+	field := val.FieldByName("UpdateTime")
+	if field.IsValid() && field.CanSet() && field.Type().AssignableTo(reflect.TypeOf(time.Time{})) {
+		field.Set(reflect.ValueOf(time.Now()))
+	}
+
 }
 
 func getUser(c *gin.Context) *models.SysUser {
