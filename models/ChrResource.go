@@ -11,8 +11,11 @@ package models
 // 资源组结构体
 type ChrResource struct {
 	Base
-	Name      string `gorm:"column:NAME" json:"name"`
-	ProjectId uint   `gorm:"column:CHR_PROJECT_ID" json:"projectId"`
+	Name      string  `gorm:"column:NAME" json:"name"`
+	ProjectId uint    `gorm:"column:CHR_PROJECT_ID" json:"projectId"`
+	Size      float64 `gorm:"column:SIZE" json:"size"`
+	Qty       int     `gorm:"column:QTY" json:"qty"`
+	CutStatus string  `gorm:"column:CUT_STATUS" json:"cutStatus"`
 }
 
 func (ChrResource) TableName() string {

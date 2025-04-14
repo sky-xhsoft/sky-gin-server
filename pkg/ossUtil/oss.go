@@ -15,8 +15,8 @@ import (
 	"github.com/aliyun/alibabacloud-oss-go-sdk-v2/oss/credentials"
 	"github.com/gin-gonic/gin"
 	"github.com/sky-xhsoft/sky-gin-server/config"
-	"gorm.io/gorm"
 	"mime/multipart"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -32,16 +32,15 @@ type OSSClient struct {
 
 // FileRecord 文件记录模型
 type FileRecord struct {
-	gorm.Model
-	FileName     string `gorm:"size:255"`
-	FileKey      string `gorm:"size:255;uniqueIndex"`
-	FileSize     int64
-	FileType     string `gorm:"size:100"`
-	OSSURL       string `gorm:"size:500"`
-	UploadStatus string `gorm:"size:50"` // uploading, completed, failed
-	PartNumber   int    // 分片序号，普通上传为0
-	UploadID     string `gorm:"size:255"` // 分片上传ID
-	ETag         string `gorm:"size:255"` // 文件ETag
+	FileName     string `gorm:"size:255" json:"fileName"`
+	FileKey      string `gorm:"size:255;uniqueIndex" json:"fileKey"`
+	FileSize     int64  `json:"fileSize"`
+	FileType     string `gorm:"size:100" json:"fileType"`
+	OSSURL       string `gorm:"size:500" json:"ossUrl"`
+	UploadStatus string `gorm:"size:50" json:"uploadStatus"` // uploading, completed, failed
+	PartNumber   int    `json:"partNumber"`                  // 分片序号，普通上传为0
+	UploadID     string `gorm:"size:255" json:"uploadId"`    // 分片上传ID
+	ETag         string `gorm:"size:255" json:"etag"`        // 文件ETag
 }
 
 var defaultClient *OSSClient
@@ -70,7 +69,7 @@ func GetClient() *OSSClient {
 }
 
 // UploadFile 上传文件到OSS（小文件直接上传）
-func (o *OSSClient) UploadFile(ctx *gin.Context, fileHeader *multipart.FileHeader, customKey ...string) (*FileRecord, error) {
+func (o *OSSClient) UploadSingleFile(ctx *gin.Context, fileHeader *multipart.FileHeader, customKey ...string) (*FileRecord, error) {
 	// 打开文件
 	file, err := fileHeader.Open()
 	if err != nil {
@@ -97,7 +96,7 @@ func (o *OSSClient) UploadFile(ctx *gin.Context, fileHeader *multipart.FileHeade
 	// 构建文件URL
 	fileURL := fmt.Sprintf("https://%s/%s", o.baseUrl, fileKey)
 
-	// 保存文件记录到数据库
+	//返回文件对象
 	fileRecord := &FileRecord{
 		FileName:     fileHeader.Filename,
 		FileKey:      fileKey,
@@ -121,4 +120,32 @@ func (o *OSSClient) generateFileKey(originalName string, customKey ...string) st
 	}
 
 	return fmt.Sprintf("uploads/%d/%d%s", time.Now().Year(), time.Now().UnixNano(), ext)
+}
+
+// UploadLocalFile 支持 os.File 文件上传
+func (o *OSSClient) UploadLocalFile(file *os.File, fileName string, projectID *uint) (*FileRecord, error) {
+	stat, err := file.Stat()
+	if err != nil {
+		return nil, err
+	}
+
+	key := fmt.Sprintf("uploads/%d/%d_%s", *projectID, time.Now().UnixNano(), fileName)
+	_, err = o.client.PutObject(context.TODO(), &oss.PutObjectRequest{
+		Bucket: &o.bucket,
+		Key:    &key,
+		Body:   file,
+	})
+	if err != nil {
+		return nil, err
+	}
+	fileURL := fmt.Sprintf("https://%s/%s", o.baseUrl, key)
+	return &FileRecord{
+		FileName:     fileName,
+		FileKey:      key,
+		FileSize:     stat.Size(),
+		FileType:     filepath.Ext(fileName),
+		OSSURL:       fileURL,
+		UploadStatus: "completed",
+		PartNumber:   0,
+	}, nil
 }

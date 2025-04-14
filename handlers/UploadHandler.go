@@ -49,7 +49,7 @@ func (h *UploadHandler) UploadFile(c *gin.Context) {
 
 	// 生成 OSS Key 并上传
 	ossKey := fmt.Sprintf("uploads/%s", file.Filename)
-	ossUrl, err := ossUtil.GetClient().UploadFile(c, file, ossKey, strconv.FormatUint(projectID, 10))
+	ossUrl, err := ossUtil.GetClient().UploadSingleFile(c, file, ossKey, strconv.FormatUint(projectID, 10))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "OSS upload failed"})
 		return

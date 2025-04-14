@@ -16,6 +16,7 @@ import (
 func init() {
 	Register(func(r *gin.Engine) {
 		WithPermission(r, "GET", "/ping", demo, "P")
+
 	})
 }
 
