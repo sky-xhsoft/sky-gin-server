@@ -21,6 +21,8 @@ type Config struct {
 	Mysql Mysql `mapstructure:"Mysql" json:"Mysql" yaml:"Mysql"` //Mysql配置文件
 
 	System System `mapstructure:"System" json:"System" yaml:"System"` //system配置文件
+
+	Oss OssConfig `yaml:"ossUtil"` //阿里云配置文件
 }
 
 type Mysql struct {
@@ -37,6 +39,15 @@ type Redis struct {
 type System struct {
 	Port    string `mapstructure:"port" json:"port" yaml:"port"`          //服务开启端口
 	LogPath string `mapstructure:"logPath" json:"logPath" yaml:"logPath"` //服务开启端口
+}
+
+type OssConfig struct {
+	Endpoint        string `yaml:"endpoint"`
+	AccessKeyId     string `yaml:"accessKeyId"`
+	AccessKeySecret string `yaml:"accessKeySecret"`
+	BucketName      string `yaml:"bucketName"`
+	BaseUrl         string `yaml:"baseUrl"`
+	Region          string `yaml:"region"`
 }
 
 var logger = log.GetLogger()

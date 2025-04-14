@@ -14,6 +14,7 @@ import (
 	"github.com/sky-xhsoft/sky-gin-server/config"
 	"github.com/sky-xhsoft/sky-gin-server/middleware"
 	"github.com/sky-xhsoft/sky-gin-server/pkg/log"
+	"github.com/sky-xhsoft/sky-gin-server/pkg/ossUtil"
 	"github.com/sky-xhsoft/sky-gin-server/routers"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
@@ -47,6 +48,12 @@ var ServerModule = fx.Module("Server",
 
 	fx.Invoke(func(s *Server) {
 		s.Engine.Use(middleware.GinLogger(s.Log), gin.Recovery())
+	}),
+
+	fx.Invoke(func(cfg *config.Config) {
+		if err := ossUtil.Init(cfg); err != nil {
+			logger.Info("OSS 初始化失败: " + err.Error())
+		}
 	}),
 
 	//支持用户手动routers注入
