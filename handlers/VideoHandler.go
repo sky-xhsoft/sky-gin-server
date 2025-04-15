@@ -137,7 +137,7 @@ func (h *VideoHandler) StartCut(c *gin.Context) {
 						return
 					}
 
-					if !waitForCompleteWrite(event.Name, 1*time.Second, time.Duration(cutTimeInt+5)*time.Second) {
+					if !waitForCompleteWrite(event.Name, time.Duration(cutTimeInt+1)*time.Second, time.Duration(cutTimeInt+5)*time.Second) {
 						log.Printf("文件写入未完成，跳过上传: %s", event.Name)
 						continue
 					}
