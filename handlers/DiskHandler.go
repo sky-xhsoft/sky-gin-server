@@ -111,7 +111,7 @@ func (h *DiskHandler) CreateFolder(c *gin.Context) {
 		ecode.Resp(c, ecode.ErrServer, err.Error())
 		return
 	}
-	ecode.SuccessResp(c, req.ID)
+	ecode.SuccessResp(c, req)
 }
 
 // 文件列表
@@ -142,7 +142,7 @@ func (h *DiskHandler) ListFiles(c *gin.Context) {
 // 删除文件（逻辑删除）
 func (h *DiskHandler) DeleteFile(c *gin.Context) {
 	tx := utils.GetTx(c, h.db)
-	id := c.Query("id")
+	id := c.Query("ID")
 	if id == "" {
 		ecode.Resp(c, ecode.ErrInvalidParam, "缺少文件ID")
 		return
@@ -180,7 +180,7 @@ func (h *DiskHandler) SearchFile(c *gin.Context) {
 func (h *DiskHandler) MoveFile(c *gin.Context) {
 	tx := utils.GetTx(c, h.db)
 	var req struct {
-		ID       uint `json:"id"`
+		ID       uint `json:"ID"`
 		ParentID uint `json:"parentId"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil || req.ID == 0 {
@@ -200,7 +200,7 @@ func (h *DiskHandler) MoveFile(c *gin.Context) {
 func (h *DiskHandler) CopyFile(c *gin.Context) {
 	tx := utils.GetTx(c, h.db)
 	var req struct {
-		ID       uint `json:"id"`
+		ID       uint `json:"ID"`
 		ParentID uint `json:"parentId"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil || req.ID == 0 {
@@ -226,5 +226,43 @@ func (h *DiskHandler) CopyFile(c *gin.Context) {
 		return
 	}
 
-	ecode.SuccessResp(c, newFile.ID)
+	ecode.SuccessResp(c, newFile)
+}
+
+// UpdateFile 修改网盘文件信息
+func (h *DiskHandler) UpdateFile(c *gin.Context) {
+	tx := utils.GetTx(c, h.db)
+
+	var req models.SysDiskFile
+	if err := c.ShouldBindJSON(&req); err != nil || req.ID == 0 {
+		ecode.Resp(c, ecode.ErrInvalidParam, "缺少文件ID")
+		return
+	}
+
+	models.FillUpdateMeta(c, &req)
+
+	// 仅更新需要的字段
+	updateFields := map[string]interface{}{}
+	if req.FileName != "" {
+		updateFields["FILE_NAME"] = req.FileName
+	}
+	if req.FileExt != "" {
+		updateFields["FILE_EXT"] = req.FileExt
+	}
+	if req.IsShared != "" {
+		updateFields["IS_SHARED"] = req.IsShared
+	}
+
+	if len(updateFields) == 0 {
+		ecode.Resp(c, ecode.ErrInvalidParam, "无有效字段修改")
+		return
+	}
+
+	if err := tx.Model(&models.SysDiskFile{}).Where("ID = ?", req.ID).Updates(updateFields).Error; err != nil {
+		c.Error(err)
+		ecode.Resp(c, ecode.ErrServer, err.Error())
+		return
+	}
+
+	ecode.SuccessResp(c, "修改成功")
 }
