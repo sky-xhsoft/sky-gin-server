@@ -35,7 +35,7 @@ func (h *ProjectHandler) CreateProject(c *gin.Context) {
 		ecode.ErrorResp(c, ecode.ErrInvalidParam)
 		return
 	}
-	utils.FillCreateMeta(c, &req)
+	models.FillCreateMeta(c, &req)
 
 	if err := tx.Create(&req).Error; err != nil {
 		c.Error(err)
@@ -52,7 +52,7 @@ func (h *ProjectHandler) CreateProject(c *gin.Context) {
 		Prem:      "A",
 		IsOwner:   "Y",
 	}
-	utils.FillCreateMeta(c, &projectUser)
+	models.FillCreateMeta(c, &projectUser)
 
 	if err := tx.Create(&projectUser).Error; err != nil {
 		c.Error(err)
@@ -87,7 +87,7 @@ func (h *ProjectHandler) UpdateProject(c *gin.Context) {
 	req["ID"] = uint(id) // 显式转为 uint
 
 	// 填充更新元信息
-	utils.FillUpdateMetaMap(c, req)
+	models.FillUpdateMetaMap(c, req)
 
 	if err := tx.Model(&models.ChrProject{}).Where("ID = ?", uint(id)).Updates(req).Error; err != nil {
 		c.Error(err)
@@ -106,7 +106,7 @@ func (h *ProjectHandler) AddProjectUser(c *gin.Context) {
 		ecode.ErrorResp(c, ecode.ErrInvalidParam)
 		return
 	}
-	utils.FillCreateMeta(c, &req)
+	models.FillCreateMeta(c, &req)
 
 	if err := tx.Create(&req).Error; err != nil {
 		c.Error(err)

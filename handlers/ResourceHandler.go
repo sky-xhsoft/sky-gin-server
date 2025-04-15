@@ -61,7 +61,7 @@ func (h *ResourceHandler) CreateResource(c *gin.Context) {
 		return
 	}
 
-	utils.FillCreateMeta(c, &req)
+	models.FillCreateMeta(c, &req)
 
 	if err := tx.Create(&req).Error; err != nil {
 		c.Error(err)
@@ -86,7 +86,7 @@ func (h *ResourceHandler) UpdateResource(c *gin.Context) {
 		return
 	}
 
-	utils.FillUpdateMetaMap(c, req)
+	models.FillUpdateMetaMap(c, req)
 
 	if err := tx.Model(&models.ChrResource{}).Where("ID = ?", req["ID"]).Updates(req).Error; err != nil {
 		c.Error(err)

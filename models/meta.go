@@ -6,11 +6,10 @@
 // Project Description:
 // ----------------------------------------------------------------------------
 
-package utils
+package models
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/sky-xhsoft/sky-gin-server/models"
 	"reflect"
 	"time"
 )
@@ -57,21 +56,21 @@ func fillMeta(c *gin.Context, model any, isCreate bool) {
 
 }
 
-func getUser(c *gin.Context) *models.SysUser {
+func getUser(c *gin.Context) *SysUser {
 	user, exists := c.Get("User")
 	if !exists {
-		return &models.SysUser{Username: "system"}
+		return &SysUser{Username: "system"}
 	}
-	if u, ok := user.(*models.SysUser); ok {
+	if u, ok := user.(*SysUser); ok {
 		return u
 	}
-	return &models.SysUser{Username: "system"}
+	return &SysUser{Username: "system"}
 }
 
 func FillUpdateMetaMap(c *gin.Context, data map[string]interface{}) {
 	userVal, exists := c.Get("User")
 	if exists {
-		if u, ok := userVal.(*models.SysUser); ok {
+		if u, ok := userVal.(*SysUser); ok {
 			data["UPDATE_BY"] = u.Username
 		}
 	}

@@ -69,7 +69,7 @@ func (h *ResourceItemHandler) Create(c *gin.Context) {
 		var existing models.ChrResourceItem
 		err := tx.Where("CHR_RESOURCE_ID = ? AND TYPE = ? AND IS_ACTIVE = 'Y'", req.ChrResourceId, "RTMP").First(&existing).Error
 		if err == nil {
-			utils.FillUpdateMeta(c, &req)
+			models.FillUpdateMeta(c, &req)
 			if err := tx.Model(&models.ChrResourceItem{}).Where("ID = ?", existing.ID).Updates(&req).Error; err != nil {
 				c.Error(err)
 				ecode.Resp(c, ecode.ErrServer, err.Error())
@@ -85,7 +85,7 @@ func (h *ResourceItemHandler) Create(c *gin.Context) {
 		}
 	}
 
-	utils.FillCreateMeta(c, &req)
+	models.FillCreateMeta(c, &req)
 
 	if err := tx.Create(&req).Error; err != nil {
 		c.Error(err)
@@ -113,7 +113,7 @@ func (h *ResourceItemHandler) Update(c *gin.Context) {
 		return
 	}
 
-	utils.FillUpdateMetaMap(c, req)
+	models.FillUpdateMetaMap(c, req)
 
 	if err := tx.Model(&models.ChrResourceItem{}).Where("ID = ?", req["ID"]).Updates(&req).Error; err != nil {
 		c.Error(err)
@@ -223,7 +223,7 @@ func (h *ResourceItemHandler) UploadSingleVideoFile(c *gin.Context) {
 		VideoFileType: fileRecord.FileType,
 		VideoParam:    string(param),
 	}
-	utils.FillCreateMeta(c, &item)
+	models.FillCreateMeta(c, &item)
 
 	tx := utils.GetTx(c, h.db)
 	if err := tx.Create(&item).Error; err != nil {
@@ -300,7 +300,7 @@ func (h *ResourceItemHandler) UploadFiles(c *gin.Context) {
 			VideoFileType: fileRecord.FileType,
 			VideoParam:    string(param),
 		}
-		utils.FillCreateMeta(c, &item)
+		models.FillCreateMeta(c, &item)
 
 		if err := tx.Create(&item).Error; err != nil {
 			c.Error(err)

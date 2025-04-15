@@ -164,7 +164,7 @@ func (h *VideoHandler) StartCut(c *gin.Context) {
 						VideoFileType: fileRecord.FileType,
 						VideoParam:    string(param),
 					}
-					utils.FillCreateMeta(c, &item)
+					models.FillCreateMeta(c, &item)
 					db.Create(&item)
 				}
 			case err := <-watcher.Errors:

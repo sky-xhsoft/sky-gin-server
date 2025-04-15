@@ -84,7 +84,7 @@ func (h *DiskHandler) Upload(c *gin.Context) {
 			FileSize:  fileHeader.Size,
 			MimeType:  fileHeader.Header.Get("Content-Type"),
 		}
-		utils.FillCreateMeta(c, &diskFile)
+		models.FillCreateMeta(c, &diskFile)
 		tx.Create(&diskFile)
 		results = append(results, diskFile)
 	}
@@ -105,7 +105,7 @@ func (h *DiskHandler) CreateFolder(c *gin.Context) {
 		ecode.Resp(c, ecode.ErrInvalidParam, "必须指定文件夹名称和类型为D")
 		return
 	}
-	utils.FillCreateMeta(c, &req)
+	models.FillCreateMeta(c, &req)
 
 	if err := tx.Create(&req).Error; err != nil {
 		ecode.Resp(c, ecode.ErrServer, err.Error())
@@ -218,7 +218,7 @@ func (h *DiskHandler) CopyFile(c *gin.Context) {
 	newFile.ID = 0
 	newFile.ParentId = req.ParentID
 	newFile.FileName += "_copy"
-	utils.FillCreateMeta(c, &newFile)
+	models.FillCreateMeta(c, &newFile)
 
 	if err := tx.Create(&newFile).Error; err != nil {
 		c.Error(err)
