@@ -77,7 +77,7 @@ func (h *VideoHandler) StartCut(c *gin.Context) {
 		return
 	}
 
-	go func(rtmpUrl, outputTemplate, cutTime string, rid *uint, db *gorm.DB) {
+	go func(rtmpUrl, outputTemplate, cutTime string, rid *uint, pid uint, db *gorm.DB) {
 
 		defer func() {
 			cutProcessesLock.Lock()
@@ -170,6 +170,7 @@ func (h *VideoHandler) StartCut(c *gin.Context) {
 
 						item := models.ChrResourceItem{
 							ChrResourceId: rid,
+							ProjectId:     pid,
 							Name:          filepath.Base(filePath),
 							Type:          "VIDEO",
 							VideoUrl:      fileRecord.OSSURL,
@@ -186,7 +187,7 @@ func (h *VideoHandler) StartCut(c *gin.Context) {
 				log.Printf("监控错误: %v", err)
 			}
 		}
-	}(item.RtmpUrl, outputTemplate, strconv.Itoa(*item.CutTimes), item.ChrResourceId, h.db)
+	}(item.RtmpUrl, outputTemplate, strconv.Itoa(*item.CutTimes), item.ChrResourceId, item.ProjectId, h.db)
 
 	ecode.SuccessResp(c, "切片任务已启动")
 }
