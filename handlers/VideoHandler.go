@@ -119,12 +119,16 @@ func (h *VideoHandler) StartCut(c *gin.Context) {
 			log.Printf("监听目录失败: %v", err)
 			return
 		}
-
+		var processedFiles = make(map[string]bool)
 		ossClient := ossUtil.GetClient()
 		for {
 			select {
 			case event := <-watcher.Events:
 				if event.Op&fsnotify.Create == fsnotify.Create && strings.HasSuffix(event.Name, ".mp4") {
+					if processedFiles[event.Name] {
+						continue
+					}
+					processedFiles[event.Name] = true
 					log.Printf("新切片文件: %s", event.Name)
 
 					cutTimeInt, err := strconv.Atoi(cutTime)
@@ -133,7 +137,7 @@ func (h *VideoHandler) StartCut(c *gin.Context) {
 						return
 					}
 
-					if !waitForCompleteWrite(event.Name, 1*time.Second, time.Duration(cutTimeInt+2)*time.Second) {
+					if !waitForCompleteWrite(event.Name, time.Duration(cutTimeInt-2)*time.Second, time.Duration(cutTimeInt+2)*time.Second) {
 						log.Printf("文件写入未完成，跳过上传: %s", event.Name)
 						continue
 					}
