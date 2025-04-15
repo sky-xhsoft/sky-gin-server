@@ -257,7 +257,7 @@ func (h *VideoHandler) GenerateHLS(c *gin.Context) {
 	}
 
 	// 使用资源ID生成唯一播放文件名
-	streamDir := fmt.Sprintf("./tmp/hls_output/%d", item.ChrResourceId)
+	streamDir := fmt.Sprintf("./tmp/hls_output/%d", *item.ChrResourceId)
 	m3u8Path := filepath.Join(streamDir, "stream.m3u8")
 
 	// 创建输出目录
@@ -280,15 +280,17 @@ func (h *VideoHandler) GenerateHLS(c *gin.Context) {
 			"-g", "25",
 			"-sc_threshold", "0",
 			"-c:v", "libx264",
+			"-crf", "18", // 高质量（保留分辨率+尽量无损）
 			"-c:a", "aac",
 			"-ar", "44100",
 			"-f", "hls",
-			"-hls_time", "2", // 每片2秒
-			"-hls_list_size", "3", // 最多3片，降低缓存
+			"-hls_time", "1", // 每片1秒
+			"-hls_list_size", "10",
 			"-hls_flags", "delete_segments+split_by_time", // 删除旧片段
 			"-hls_segment_filename", filepath.Join(outputDir, "seg%d.ts"),
 			outputM3U8,
 		)
+
 		if err := cmd.Run(); err != nil {
 			fmt.Printf("HLS 异步转码失败: %v\n", err)
 		} else {
@@ -297,7 +299,8 @@ func (h *VideoHandler) GenerateHLS(c *gin.Context) {
 	}(item.RtmpUrl, streamDir, m3u8Path)
 
 	ecode.SuccessResp(c, gin.H{
-		"hls": fmt.Sprintf("/static/hls_output/%d/stream.m3u8", item.ChrResourceId),
+		"hls":     fmt.Sprintf("/static/hls_output/%d/stream.m3u8", *item.ChrResourceId),
+		"preview": fmt.Sprintf("/api/resource/play?id=%d", *item.ChrResourceId),
 	})
 }
 
@@ -314,7 +317,7 @@ func (h *VideoHandler) PlayPage(c *gin.Context) {
 		<title>HLS 播放</title>
 	</head>
 	<body>
-		<video id="video" width="640" height="360" controls autoplay muted></video>
+		<video id="video"  controls autoplay muted></video>
 		<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 		<script>
 			if(Hls.isSupported()) {

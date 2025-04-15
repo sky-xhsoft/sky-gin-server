@@ -48,7 +48,7 @@ var ServerModule = fx.Module("Server",
 
 	fx.Invoke(func(s *Server) {
 		s.Engine.Static("/static/hls_output", "./tmp/hls_output")
-		s.Engine.Use(middleware.GinLogger(s.Log), gin.Recovery())
+		s.Engine.Use(middleware.CORSMiddleware(), middleware.GinLogger(s.Log), gin.Recovery())
 	}),
 
 	fx.Invoke(func(cfg *config.Config) {

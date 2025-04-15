@@ -7,6 +7,7 @@ import (
 	"github.com/sky-xhsoft/sky-gin-server/pkg/ecode"
 	"github.com/sky-xhsoft/sky-gin-server/pkg/utils"
 	"gorm.io/gorm"
+	"strings"
 )
 
 type ProjectHandler struct {
@@ -59,22 +60,36 @@ func (h *ProjectHandler) CreateProject(c *gin.Context) {
 		return
 	}
 
-	ecode.SuccessResp(c, req.ID)
+	ecode.SuccessResp(c, req)
 }
 
 // 更新项目
 func (h *ProjectHandler) UpdateProject(c *gin.Context) {
 	tx := utils.GetTx(c, h.db)
 
-	var req models.ChrProject
-	if err := c.ShouldBindJSON(&req); err != nil || req.ID == 0 {
+	var req map[string]interface{}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		ecode.Resp(c, ecode.ErrInvalidParam, "参数解析失败")
+		return
+	}
+
+	idVal, exists := req["ID"]
+	if !exists {
 		ecode.Resp(c, ecode.ErrInvalidParam, "缺少项目ID")
 		return
 	}
 
-	utils.FillUpdateMeta(c, &req)
+	id, ok := idVal.(float64)
+	if !ok || uint(id) == 0 {
+		ecode.Resp(c, ecode.ErrInvalidParam, "项目ID非法")
+		return
+	}
+	req["ID"] = uint(id) // 显式转为 uint
 
-	if err := tx.Model(&models.ChrProject{}).Where("ID = ?", req.ID).Updates(&req).Error; err != nil {
+	// 填充更新元信息
+	utils.FillUpdateMetaMap(c, req)
+
+	if err := tx.Model(&models.ChrProject{}).Where("ID = ?", uint(id)).Updates(req).Error; err != nil {
 		c.Error(err)
 		ecode.Resp(c, ecode.ErrServer, err.Error())
 		return
@@ -105,9 +120,9 @@ func (h *ProjectHandler) AddProjectUser(c *gin.Context) {
 func (h *ProjectHandler) ListProjectUsers(c *gin.Context) {
 	tx := utils.GetTx(c, h.db)
 
-	projectID := c.Query("projectId")
+	projectID := c.Query("ID")
 	if projectID == "" {
-		ecode.Resp(c, ecode.ErrInvalidParam, "缺少 projectId")
+		ecode.Resp(c, ecode.ErrInvalidParam, "缺少 ID")
 		return
 	}
 
@@ -124,9 +139,9 @@ func (h *ProjectHandler) ListProjectUsers(c *gin.Context) {
 func (h *ProjectHandler) RemoveProjectUser(c *gin.Context) {
 	tx := utils.GetTx(c, h.db)
 
-	id := c.Query("id")
+	id := c.Query("ID")
 	if id == "" {
-		ecode.Resp(c, ecode.ErrInvalidParam, "缺少 id")
+		ecode.Resp(c, ecode.ErrInvalidParam, "缺少 ID")
 		return
 	}
 
@@ -158,8 +173,15 @@ func (h *ProjectHandler) ListMyProjects(c *gin.Context) {
 		return
 	}
 
+	// 解析前端传入的排序参数，默认降序
+	order := strings.ToLower(c.DefaultQuery("order", "desc"))
+	if order != "asc" && order != "desc" {
+		order = "desc"
+	}
+
 	var projects []models.ChrProject
 	if err := tx.Where("ID IN ? AND IS_ACTIVE = 'Y'", projectIDs).
+		Order("CREATE_TIME " + order).
 		Find(&projects).Error; err != nil {
 		c.Error(err)
 		ecode.Resp(c, ecode.ErrServer, err.Error())

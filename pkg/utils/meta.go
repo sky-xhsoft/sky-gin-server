@@ -67,3 +67,13 @@ func getUser(c *gin.Context) *models.SysUser {
 	}
 	return &models.SysUser{Username: "system"}
 }
+
+func FillUpdateMetaMap(c *gin.Context, data map[string]interface{}) {
+	userVal, exists := c.Get("User")
+	if exists {
+		if u, ok := userVal.(*models.SysUser); ok {
+			data["UPDATE_BY"] = u.Username
+		}
+	}
+	data["UPDATE_TIME"] = time.Now()
+}

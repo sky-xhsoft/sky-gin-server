@@ -52,6 +52,13 @@ func (h *ResourceItemHandler) Create(c *gin.Context) {
 		return
 	}
 
+	var resouce models.ChrResource
+	if err := tx.Where(" id = ?", *req.ChrResourceId).First(&resouce).Error; err != nil {
+		ecode.Resp(c, ecode.ErrInvalidParam, "缺少资源组ID")
+		return
+	}
+	req.ProjectId = resouce.ProjectId
+
 	if req.Type == "RTMP" {
 		if req.RtmpUrl == "" || req.CutTimes == nil {
 			ecode.Resp(c, ecode.ErrInvalidParam, "RTMP 类型需提供 RTMP_URL 和 CUT_TIMES")
@@ -105,6 +112,13 @@ func (h *ResourceItemHandler) Update(c *gin.Context) {
 		ecode.Resp(c, ecode.ErrInvalidParam, "缺少资源组ID")
 		return
 	}
+
+	var resouce models.ChrResource
+	if err := tx.Where(" id = ?", *req.ChrResourceId).First(&resouce).Error; err != nil {
+		ecode.Resp(c, ecode.ErrInvalidParam, "缺少资源组ID")
+		return
+	}
+	req.ProjectId = resouce.ProjectId
 
 	if req.Type == "RTMP" {
 		if req.RtmpUrl == "" || req.CutTimes == nil {
@@ -193,6 +207,12 @@ func (h *ResourceItemHandler) UploadSingleVideoFile(c *gin.Context) {
 		return
 	}
 
+	var resouce models.ChrResource
+	if err := h.db.Where(" id = ?", resourceID).First(&resouce).Error; err != nil {
+		ecode.Resp(c, ecode.ErrInvalidParam, "缺少资源组ID")
+		return
+	}
+
 	ossClient := ossUtil.GetClient()
 	fileRecord, err := ossClient.UploadSingleFile(c, header, strconv.Itoa(int(rid)), header.Filename)
 	if err != nil {
@@ -209,6 +229,7 @@ func (h *ResourceItemHandler) UploadSingleVideoFile(c *gin.Context) {
 
 	item := models.ChrResourceItem{
 		ChrResourceId: &rid,
+		ProjectId:     resouce.ProjectId,
 		Name:          header.Filename,
 		Type:          "VIDEO",
 		VideoUrl:      fileRecord.OSSURL,
@@ -254,6 +275,12 @@ func (h *ResourceItemHandler) UploadFiles(c *gin.Context) {
 		return
 	}
 
+	var resouce models.ChrResource
+	if err := h.db.Where(" id = ?", resourceID).First(&resouce).Error; err != nil {
+		ecode.Resp(c, ecode.ErrInvalidParam, "缺少资源组ID")
+		return
+	}
+
 	ossClient := ossUtil.GetClient()
 	tx := utils.GetTx(c, h.db)
 	var result []gin.H
@@ -279,6 +306,7 @@ func (h *ResourceItemHandler) UploadFiles(c *gin.Context) {
 
 		item := models.ChrResourceItem{
 			ChrResourceId: &rid,
+			ProjectId:     resouce.ProjectId,
 			Name:          fileHeader.Filename,
 			Type:          "VIDEO",
 			VideoUrl:      fileRecord.OSSURL,
@@ -311,13 +339,19 @@ func (h *ResourceItemHandler) UploadFiles(c *gin.Context) {
 func (h *ResourceItemHandler) updateResourceStats(tx *gorm.DB, rid uint) {
 	var totalSize float64
 	var totalQty int64
+	var resource models.ChrResource
+
+	if err := tx.Model(&models.ChrResource{}).Where("ID =?", rid).First(&resource); err == nil {
+		return
+	}
+
 	tx.Model(&models.ChrResourceItem{}).
-		Where("CHR_RESOURCE_ID = ? AND TYPE = ? AND IS_ACTIVE = 'Y'", rid, "VIDEO").
+		Where("CHR_PROJECT_ID = ? AND TYPE = ? AND IS_ACTIVE = 'Y'", resource.ProjectId, "VIDEO").
 		Count(&totalQty).
 		Select("COALESCE(SUM(VIDEO_FILE_SIZE), 0)").
 		Scan(&totalSize)
 
-	tx.Model(&models.ChrResource{}).Where("ID = ?", rid).Updates(map[string]interface{}{
+	tx.Model(&models.ChrProject{}).Where("ID = ?", resource.ProjectId).Updates(map[string]interface{}{
 		"SIZE": totalSize,
 		"QTY":  totalQty,
 	})

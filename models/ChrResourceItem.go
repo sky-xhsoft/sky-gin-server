@@ -12,6 +12,7 @@ package models
 type ChrResourceItem struct {
 	Base
 	ChrResourceId *uint   `gorm:"column:CHR_RESOURCE_ID" json:"chrResourceId"`
+	ProjectId     uint    `gorm:"column:CHR_PROJECT_ID" json:"projectId"`
 	Name          string  `gorm:"column:NAME" json:"name"`
 	Type          string  `gorm:"column:TYPE" json:"type"` // RTMP / VIDEO
 	RtmpUrl       string  `gorm:"column:RTMP_URL" json:"rtmpUrl"`
