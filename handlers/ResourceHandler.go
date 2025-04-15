@@ -68,39 +68,27 @@ func (h *ResourceHandler) CreateResource(c *gin.Context) {
 		ecode.Resp(c, ecode.ErrServer, err.Error())
 		return
 	}
-	ecode.SuccessResp(c, req.ID)
+	ecode.SuccessResp(c, req)
 }
 
 // 更新资源组
 func (h *ResourceHandler) UpdateResource(c *gin.Context) {
 	tx := utils.GetTx(c, h.db)
 
-	var req models.ChrResource
-	if err := c.ShouldBindJSON(&req); err != nil || req.ID == 0 {
+	var req map[string]interface{}
+	if err := c.ShouldBindJSON(&req); err != nil {
 		ecode.Resp(c, ecode.ErrInvalidParam, "缺少资源ID")
 		return
 	}
 
-	if req.ProjectId == 0 {
+	if req["ID"] == 0 {
 		ecode.Resp(c, ecode.ErrInvalidParam, "缺少项目ID")
 		return
 	}
 
-	// 验证项目是否存在
-	var project models.ChrProject
-	if err := tx.First(&project, "ID = ? AND IS_ACTIVE = 'Y'", req.ProjectId).Error; err != nil {
-		ecode.Resp(c, ecode.ErrInvalidParam, "指定项目不存在")
-		return
-	}
+	utils.FillUpdateMetaMap(c, req)
 
-	if req.Name == "" {
-		ecode.Resp(c, ecode.ErrInvalidParam, "资源组名称不能为空")
-		return
-	}
-
-	utils.FillUpdateMeta(c, &req)
-
-	if err := tx.Model(&models.ChrResource{}).Where("ID = ?", req.ID).Updates(&req).Error; err != nil {
+	if err := tx.Model(&models.ChrResource{}).Where("ID = ?", req["ID"]).Updates(req).Error; err != nil {
 		c.Error(err)
 		ecode.Resp(c, ecode.ErrServer, err.Error())
 		return
@@ -111,7 +99,7 @@ func (h *ResourceHandler) UpdateResource(c *gin.Context) {
 // 删除资源组（逻辑删除）
 func (h *ResourceHandler) DeleteResource(c *gin.Context) {
 	tx := utils.GetTx(c, h.db)
-	id := c.Query("id")
+	id := c.Query("ID")
 	if id == "" {
 		ecode.Resp(c, ecode.ErrInvalidParam, "缺少资源ID")
 		return
