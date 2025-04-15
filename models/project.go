@@ -16,6 +16,8 @@ type ChrProject struct {
 	Size     float64 `gorm:"column:SIZE" json:"size"`
 	Qty      int     `gorm:"column:QTY" json:"qty"`
 	Base
+
+	Resouse []ChrResource `gorm:"-" json:"resouse"`
 }
 
 func (ChrProject) TableName() string {

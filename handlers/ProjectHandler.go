@@ -190,3 +190,38 @@ func (h *ProjectHandler) ListMyProjects(c *gin.Context) {
 
 	ecode.SuccessResp(c, projects)
 }
+
+func (h *ProjectHandler) ListResourceItemByProject(c *gin.Context) {
+	tx := utils.GetTx(c, h.db)
+
+	projectId := c.Query("projectId")
+	var project models.ChrProject
+	//获取项目详情
+	if err := tx.Model(models.ChrProject{}).Where("ID = ?", projectId).First(&project).Error; err != nil {
+		c.Error(err)
+		ecode.Resp(c, ecode.ErrServer, err)
+		return
+	}
+	//根据项目获取所有资源明细
+	var resources []models.ChrResource
+	if err := tx.Where("CHR_PROJECT_ID =? and IS_ACTIVE='Y'", projectId).
+		Order("CREATE_TIME desc").Find(&resources).Error; err != nil {
+		c.Error(err)
+		ecode.Resp(c, ecode.ErrServer, err)
+		return
+	}
+
+	for k, v := range resources {
+		var items []models.ChrResourceItem
+		if err := tx.Where("CHR_RESOURCE_ID =? and IS_ACTIVE='Y' ", v.ID).
+			Order("CREATE_TIME desc").Find(&items).Error; err != nil {
+			continue
+		}
+		resources[k].Items = items
+	}
+
+	project.Resouse = resources
+
+	ecode.SuccessResp(c, project)
+
+}

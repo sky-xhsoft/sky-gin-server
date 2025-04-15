@@ -95,52 +95,38 @@ func (h *ResourceItemHandler) Create(c *gin.Context) {
 
 	h.updateResourceStats(tx, *req.ChrResourceId)
 
-	ecode.SuccessResp(c, req.ID)
+	ecode.SuccessResp(c, req)
 }
 
 // 更新资源明细
 func (h *ResourceItemHandler) Update(c *gin.Context) {
 	tx := utils.GetTx(c, h.db)
 
-	var req models.ChrResourceItem
-	if err := c.ShouldBindJSON(&req); err != nil || req.ID == 0 {
+	var req map[string]interface{}
+	if err := c.ShouldBindJSON(&req); err != nil {
 		ecode.Resp(c, ecode.ErrInvalidParam, "缺少资源明细ID")
 		return
 	}
 
-	if req.ChrResourceId == nil || *req.ChrResourceId == 0 {
-		ecode.Resp(c, ecode.ErrInvalidParam, "缺少资源组ID")
+	if req["ID"] == 0 {
+		ecode.Resp(c, ecode.ErrInvalidParam, "缺少资源明细ID")
 		return
 	}
 
-	var resouce models.ChrResource
-	if err := tx.Where(" id = ?", *req.ChrResourceId).First(&resouce).Error; err != nil {
-		ecode.Resp(c, ecode.ErrInvalidParam, "缺少资源组ID")
-		return
-	}
-	req.ProjectId = resouce.ProjectId
+	utils.FillUpdateMetaMap(c, req)
 
-	if req.Type == "RTMP" {
-		if req.RtmpUrl == "" || req.CutTimes == nil {
-			ecode.Resp(c, ecode.ErrInvalidParam, "RTMP 类型需提供 RTMP_URL 和 CUT_TIMES")
-			return
-		}
-	} else if req.Type == "VIDEO" {
-		if req.VideoUrl == "" {
-			ecode.Resp(c, ecode.ErrInvalidParam, "VIDEO 类型需提供 VIDEO_URL")
-			return
-		}
-	}
-
-	utils.FillUpdateMeta(c, &req)
-
-	if err := tx.Model(&models.ChrResourceItem{}).Where("ID = ?", req.ID).Updates(&req).Error; err != nil {
+	if err := tx.Model(&models.ChrResourceItem{}).Where("ID = ?", req["ID"]).Updates(&req).Error; err != nil {
 		c.Error(err)
 		ecode.Resp(c, ecode.ErrServer, err.Error())
 		return
 	}
 
-	h.updateResourceStats(tx, *req.ChrResourceId)
+	var item models.ChrResourceItem
+	if err := tx.Model(&models.ChrResourceItem{}).Where("ID =?", req["ID"]).First(&item); err == nil {
+		return
+	}
+
+	h.updateResourceStats(tx, *item.ChrResourceId)
 
 	ecode.SuccessResp(c, "更新成功")
 }
@@ -148,7 +134,7 @@ func (h *ResourceItemHandler) Update(c *gin.Context) {
 // 删除明细资源
 func (h *ResourceItemHandler) Delete(c *gin.Context) {
 	tx := utils.GetTx(c, h.db)
-	id := c.Query("id")
+	id := c.Query("ID")
 	if id == "" {
 		ecode.Resp(c, ecode.ErrInvalidParam, "缺少资源明细ID")
 		return
@@ -283,7 +269,7 @@ func (h *ResourceItemHandler) UploadFiles(c *gin.Context) {
 
 	ossClient := ossUtil.GetClient()
 	tx := utils.GetTx(c, h.db)
-	var result []gin.H
+	var result []models.ChrResourceItem
 
 	for _, fileHeader := range files {
 		file, err := fileHeader.Open()
@@ -321,11 +307,7 @@ func (h *ResourceItemHandler) UploadFiles(c *gin.Context) {
 			continue
 		}
 
-		result = append(result, gin.H{
-			"id":   item.ID,
-			"url":  fileRecord.OSSURL,
-			"name": fileHeader.Filename,
-		})
+		result = append(result, item)
 	}
 	h.updateResourceStats(tx, rid)
 
