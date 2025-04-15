@@ -50,6 +50,9 @@ func (h *VideoHandler) SetOption(ctx *core.AppContext) {
 var cutProcesses = make(map[uint]*exec.Cmd) // 资源ID -> 进程
 var cutProcessesLock sync.Mutex
 
+var processedFiles = make(map[string]bool)
+var mu sync.Mutex // 保证并发安全
+
 // StartCut 启动直播流分段录制并监听目录上传切片至 OSS
 func (h *VideoHandler) StartCut(c *gin.Context) {
 	//tx := utils.GetTx(c, h.db)
@@ -119,57 +122,65 @@ func (h *VideoHandler) StartCut(c *gin.Context) {
 			log.Printf("监听目录失败: %v", err)
 			return
 		}
-		var processedFiles = make(map[string]bool)
+
 		ossClient := ossUtil.GetClient()
 		for {
 			select {
 			case event := <-watcher.Events:
 				if event.Op&fsnotify.Create == fsnotify.Create && strings.HasSuffix(event.Name, ".mp4") {
+					mu.Lock()
 					if processedFiles[event.Name] {
+						mu.Unlock()
 						continue
 					}
 					processedFiles[event.Name] = true
-					log.Printf("新切片文件: %s", event.Name)
+					mu.Unlock()
 
-					cutTimeInt, err := strconv.Atoi(cutTime)
-					if err != nil {
-						log.Printf("切片时间无效: %v", err)
-						return
-					}
+					// ⚡️独立协程处理上传逻辑
+					go func(filePath string) {
+						log.Printf("新切片文件: %s", filePath)
 
-					if !waitForCompleteWrite(event.Name, time.Duration(cutTimeInt+1)*time.Second, time.Duration(cutTimeInt+5)*time.Second) {
-						log.Printf("文件写入未完成，跳过上传: %s", event.Name)
-						continue
-					}
+						cutTimeInt, err := strconv.Atoi(cutTime)
+						if err != nil {
+							log.Printf("切片时间无效: %v", err)
+							return
+						}
 
-					f, err := os.Open(event.Name)
-					if err != nil {
-						log.Printf("打开切片失败: %v", err)
-						continue
-					}
-					_, _ = f.Stat()
-					fileRecord, err := ossClient.UploadLocalFile(f, filepath.Base(event.Name), rid)
-					f.Close()
-					if err != nil {
-						log.Printf("切片上传失败: %v", err)
-						continue
-					}
-					param, _ := json.Marshal(fileRecord)
-					// 转为 MB，保留 1 位小数
-					sizeInMB := float64(fileRecord.FileSize) / 1024.0 / 1024.0
-					sizeRounded := math.Round(sizeInMB*10) / 10 // 保留 1 位小数
+						if !waitForCompleteWrite(filePath, 2*time.Second, time.Duration(cutTimeInt+5)*time.Second) {
+							log.Printf("文件写入未完成，跳过上传: %s", filePath)
+							return
+						}
 
-					item := models.ChrResourceItem{
-						ChrResourceId: rid,
-						Name:          filepath.Base(event.Name),
-						Type:          "VIDEO",
-						VideoUrl:      fileRecord.OSSURL,
-						VideoFileSize: sizeRounded,
-						VideoFileType: fileRecord.FileType,
-						VideoParam:    string(param),
-					}
-					models.FillCreateMeta(c, &item)
-					db.Create(&item)
+						f, err := os.Open(filePath)
+						if err != nil {
+							log.Printf("打开切片失败: %v", err)
+							return
+						}
+						_, _ = f.Stat()
+						fileRecord, err := ossClient.UploadLocalFile(f, filepath.Base(filePath), rid)
+						f.Close()
+						if err != nil {
+							log.Printf("切片上传失败: %v", err)
+							return
+						}
+
+						param, _ := json.Marshal(fileRecord)
+						sizeInMB := float64(fileRecord.FileSize) / 1024.0 / 1024.0
+						sizeRounded := math.Round(sizeInMB*10) / 10
+
+						item := models.ChrResourceItem{
+							ChrResourceId: rid,
+							Name:          filepath.Base(filePath),
+							Type:          "VIDEO",
+							VideoUrl:      fileRecord.OSSURL,
+							VideoFileSize: sizeRounded,
+							VideoFileType: fileRecord.FileType,
+							VideoParam:    string(param),
+						}
+						models.FillCreateMeta(c, &item)
+						db.Create(&item)
+
+					}(event.Name)
 				}
 			case err := <-watcher.Errors:
 				log.Printf("监控错误: %v", err)
@@ -240,6 +251,7 @@ func waitForCompleteWrite(path string, checkInterval time.Duration, maxWait time
 		}
 		prevSize = currSize
 		time.Sleep(checkInterval)
+		start = time.Now()
 	}
 	return false
 }
