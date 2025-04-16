@@ -1,10 +1,13 @@
 // ----------------------------------------------------------------------------
 // Project Name: sky-gin-server
-// File Name: VideoHandler.go
+// File Name: VideoHandler_windows.go
 // Author: xhsoftware-skyzhou
 // Created On: 2025/4/15
 // Project Description:
 // ----------------------------------------------------------------------------
+
+//go:build linux
+// +build linux
 
 package handlers
 
@@ -28,6 +31,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -99,6 +103,10 @@ func (h *VideoHandler) StartCut(c *gin.Context) {
 			"-strftime", "1",
 			outputTemplate,
 		)
+
+		// 为进程设置独立的进程组，便于后续整体杀死
+		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+
 		if err := cmd.Start(); err != nil {
 			log.Printf("ffmpeg 启动失败: %v", err)
 			return
@@ -220,11 +228,12 @@ func (h *VideoHandler) StopCut(c *gin.Context) {
 		return
 	}
 
-	// 尝试中断进程
-	if err := cmd.Process.Kill(); err != nil {
+	// 杀掉整个进程组，负号表示进程组
+	if err := syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL); err != nil {
 		ecode.Resp(c, ecode.ErrServer, "停止切片失败: "+err.Error())
 		return
 	}
+
 	h.db.Model(&models.ChrResource{}).
 		Where("ID = ?", *item.ChrResourceId).
 		Update("CUT_STATUS", 0)
