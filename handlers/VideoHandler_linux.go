@@ -131,12 +131,13 @@ func (h *VideoHandler) StartCut(c *gin.Context) {
 			return
 		}
 
-		ossClient := ossUtil.GetClient()
+		var lastFilePath string
 		for {
 			select {
 			case event := <-watcher.Events:
 				if event.Op&fsnotify.Create == fsnotify.Create && strings.HasSuffix(event.Name, ".mp4") {
-					log.Println("test:" + event.String())
+					log.Println("新切片创建：" + event.Name)
+
 					mu.Lock()
 					if processedFiles[event.Name] {
 						mu.Unlock()
@@ -145,60 +146,55 @@ func (h *VideoHandler) StartCut(c *gin.Context) {
 					processedFiles[event.Name] = true
 					mu.Unlock()
 
-					// ⚡️独立协程处理上传逻辑
-					go func(filePath string) {
-						log.Printf("新切片文件: %s", filePath)
-
-						cutTimeInt, err := strconv.Atoi(cutTime)
-						if err != nil {
-							log.Printf("切片时间无效: %v", err)
-							return
-						}
-
-						if !waitForCompleteWrite(filePath, 1*time.Second, time.Duration(cutTimeInt)*time.Second) {
-							log.Printf("文件写入未完成，跳过上传: %s", filePath)
-							return
-						}
-
-						f, err := os.Open(filePath)
-						if err != nil {
-							log.Printf("打开切片失败: %v", err)
-							return
-						}
-						_, _ = f.Stat()
-						fileRecord, err := ossClient.UploadLocalFile(f, filepath.Base(filePath), rid)
-						f.Close()
-						if err != nil {
-							log.Printf("切片上传失败: %v", err)
-							return
-						}
-
-						param, _ := json.Marshal(fileRecord)
-						sizeInMB := float64(fileRecord.FileSize) / 1024.0 / 1024.0
-						sizeRounded := math.Round(sizeInMB*10) / 10
-
-						item := models.ChrResourceItem{
-							ChrResourceId: rid,
-							ProjectId:     pid,
-							Name:          filepath.Base(filePath),
-							Type:          "VIDEO",
-							VideoUrl:      fileRecord.OSSURL,
-							VideoFileSize: sizeRounded,
-							VideoFileType: fileRecord.FileType,
-							VideoParam:    string(param),
-						}
-						models.FillCreateMeta(c, &item)
-						db.Create(&item)
-
-					}(event.Name)
+					// 上传前一个文件
+					if lastFilePath != "" {
+						go uploadFileToOSS(lastFilePath, rid, pid, db)
+					}
+					lastFilePath = event.Name
 				}
 			case err := <-watcher.Errors:
 				log.Printf("监控错误: %v", err)
 			}
 		}
+
 	}(item.RtmpUrl, outputTemplate, strconv.Itoa(*item.CutTimes), item.ChrResourceId, item.ProjectId, h.db)
 
 	ecode.SuccessResp(c, "切片任务已启动")
+}
+
+func uploadFileToOSS(filePath string, rid *uint, pid uint, db *gorm.DB) {
+	log.Printf("准备上传上一个切片: %s", filePath)
+
+	f, err := os.Open(filePath)
+	if err != nil {
+		log.Printf("打开切片失败: %v", err)
+		return
+	}
+	defer f.Close()
+
+	ossClient := ossUtil.GetClient()
+	fileRecord, err := ossClient.UploadLocalFile(f, filepath.Base(filePath), rid)
+	if err != nil {
+		log.Printf("切片上传失败: %v", err)
+		return
+	}
+
+	param, _ := json.Marshal(fileRecord)
+	sizeInMB := float64(fileRecord.FileSize) / 1024.0 / 1024.0
+	sizeRounded := math.Round(sizeInMB*10) / 10
+
+	item := models.ChrResourceItem{
+		ChrResourceId: rid,
+		ProjectId:     pid,
+		Name:          filepath.Base(filePath),
+		Type:          "VIDEO",
+		VideoUrl:      fileRecord.OSSURL,
+		VideoFileSize: sizeRounded,
+		VideoFileType: fileRecord.FileType,
+		VideoParam:    string(param),
+	}
+	models.FillCreateMeta(nil, &item) // context 可选
+	db.Create(&item)
 }
 
 func (h *VideoHandler) StopCut(c *gin.Context) {
