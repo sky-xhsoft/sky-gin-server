@@ -136,6 +136,7 @@ func (h *VideoHandler) StartCut(c *gin.Context) {
 			select {
 			case event := <-watcher.Events:
 				if event.Op&fsnotify.Create == fsnotify.Create && strings.HasSuffix(event.Name, ".mp4") {
+					log.Println("test:" + event.String())
 					mu.Lock()
 					if processedFiles[event.Name] {
 						mu.Unlock()
@@ -154,7 +155,7 @@ func (h *VideoHandler) StartCut(c *gin.Context) {
 							return
 						}
 
-						if !waitForCompleteWrite(filePath, 2*time.Second, time.Duration(cutTimeInt+5)*time.Second) {
+						if !waitForCompleteWrite(filePath, 1*time.Second, time.Duration(cutTimeInt)*time.Second) {
 							log.Printf("文件写入未完成，跳过上传: %s", filePath)
 							return
 						}
