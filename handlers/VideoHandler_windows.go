@@ -23,6 +23,7 @@ import (
 	"github.com/sky-xhsoft/sky-gin-server/pkg/ossUtil"
 	"github.com/sky-xhsoft/sky-gin-server/pkg/utils"
 	"gorm.io/gorm"
+	"io"
 	"log"
 	"math"
 	"net/http"
@@ -53,6 +54,7 @@ func (h *VideoHandler) SetOption(ctx *core.AppContext) {
 
 var cutProcesses = make(map[uint]*exec.Cmd) // 资源ID -> 进程
 var cutProcessesLock sync.Mutex
+var cutProcessesStdin = make(map[uint]io.WriteCloser)
 
 var processedFiles = make(map[string]bool)
 var mu sync.Mutex // 保证并发安全
@@ -89,6 +91,7 @@ func (h *VideoHandler) StartCut(c *gin.Context) {
 			cutProcessesLock.Lock()
 			delete(cutProcesses, *rid)
 			delete(cutProcessesCancel, *rid)
+			delete(cutProcessesStdin, *rid)
 			cutProcessesLock.Unlock()
 			h.db.Model(&models.ChrResource{}).Where("ID = ?", *rid).Update("CUT_STATUS", 0)
 		}()
@@ -104,6 +107,12 @@ func (h *VideoHandler) StartCut(c *gin.Context) {
 			outputTemplate,
 		)
 
+		stdin, err := cmd.StdinPipe()
+		if err != nil {
+			log.Printf("无法获取 ffmpeg stdin: %v", err)
+			return
+		}
+
 		if err := cmd.Start(); err != nil {
 			log.Printf("ffmpeg 启动失败: %v", err)
 			return
@@ -112,6 +121,7 @@ func (h *VideoHandler) StartCut(c *gin.Context) {
 		h.db.Model(&models.ChrResource{}).Where("ID = ?", *rid).Update("CUT_STATUS", 1)
 		cutProcessesLock.Lock()
 		cutProcesses[*rid] = cmd
+		cutProcessesStdin[*rid] = stdin
 		cutProcessesLock.Unlock()
 
 		watcher, err := fsnotify.NewWatcher()
@@ -136,6 +146,18 @@ func (h *VideoHandler) StartCut(c *gin.Context) {
 			for {
 				select {
 				case <-ctx.Done():
+					//上传完成所有文件后退出
+					pendingMu.Lock()
+					var remain []string
+					for _, f := range pendingFiles {
+						if isFileStable(f, 3) {
+							go uploadFileToOSS(f, rid, pid, db, c)
+						} else {
+							remain = append(remain, f)
+						}
+					}
+					pendingFiles = remain
+					pendingMu.Unlock()
 					log.Println("[切片任务] 上传监控退出")
 					return
 				case <-ticker.C:
@@ -224,14 +246,21 @@ func (h *VideoHandler) StopCut(c *gin.Context) {
 	cutProcessesLock.Lock()
 	cmd, exists := cutProcesses[uint(rid)]
 	cancelFunc, cancelExists := cutProcessesCancel[uint(rid)]
+	stdin, stdinExists := cutProcessesStdin[uint(rid)]
 	cutProcessesLock.Unlock()
 
-	if cancelExists {
-		cancelFunc() // 通知同步协程退出
+	if exists && cmd != nil && cmd.Process != nil {
+		if stdinExists {
+			_, _ = stdin.Write([]byte("q\n"))
+			log.Println("已向 ffmpeg 发送 q 指令以优雅退出")
+		} else {
+			_ = cmd.Process.Kill()
+		}
 	}
 
-	if exists && cmd != nil && cmd.Process != nil {
-		cmd.Process.Kill()
+	if cancelExists {
+		time.Sleep(1 * time.Second)
+		cancelFunc() // 通知同步协程退出
 	}
 
 	h.db.Model(&models.ChrResource{}).

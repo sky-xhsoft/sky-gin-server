@@ -137,6 +137,18 @@ func (h *VideoHandler) StartCut(c *gin.Context) {
 			for {
 				select {
 				case <-ctx.Done():
+					//上传完成所有文件后退出
+					pendingMu.Lock()
+					var remain []string
+					for _, f := range pendingFiles {
+						if isFileStable(f, 3) {
+							go uploadFileToOSS(f, rid, pid, db, nil)
+						} else {
+							remain = append(remain, f)
+						}
+					}
+					pendingFiles = remain
+					pendingMu.Unlock()
 					log.Println("[切片任务] 上传监控退出")
 					return
 				case <-ticker.C:
@@ -247,12 +259,13 @@ func (h *VideoHandler) StopCut(c *gin.Context) {
 	cancelFunc, cancelExists := cutProcessesCancel[uint(rid)]
 	cutProcessesLock.Unlock()
 
-	if cancelExists {
-		cancelFunc() // 通知同步协程退出
+	if exists && cmd != nil && cmd.Process != nil {
+		_ = syscall.Kill(cmd.Process.Pid, syscall.SIGINT)
 	}
 
-	if exists && cmd != nil && cmd.Process != nil {
-		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+	if cancelExists {
+		time.Sleep(1 * time.Second)
+		cancelFunc() // 通知同步协程退出
 	}
 
 	h.db.Model(&models.ChrResource{}).
