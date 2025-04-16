@@ -147,10 +147,10 @@ func (h *VideoHandler) StartCut(c *gin.Context) {
 					mu.Unlock()
 
 					// 上传前一个文件
-					if lastFilePath != "" {
-						go uploadFileToOSS(event.Name, rid, pid, db, c)
-					}
-					lastFilePath = event.Name
+					//if lastFilePath != "" {
+					go uploadFileToOSS(event.Name, rid, pid, db, c)
+					//}
+					//lastFilePath = event.Name
 				}
 			case err := <-watcher.Errors:
 				log.Printf("监控错误: %v", err)
