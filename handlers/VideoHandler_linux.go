@@ -131,11 +131,11 @@ func (h *VideoHandler) StartCut(c *gin.Context) {
 			return
 		}
 
-		var lastFilePath string
+		//var lastFilePath string
 		for {
 			select {
 			case event := <-watcher.Events:
-				if event.Op&fsnotify.Create == fsnotify.Create && strings.HasSuffix(event.Name, ".mp4") {
+				if event.Op&fsnotify.CloseWrite == fsnotify.CloseWrite && strings.HasSuffix(event.Name, ".mp4") {
 					log.Println("新切片创建：" + event.Name)
 
 					mu.Lock()
@@ -148,7 +148,7 @@ func (h *VideoHandler) StartCut(c *gin.Context) {
 
 					// 上传前一个文件
 					if lastFilePath != "" {
-						go uploadFileToOSS(lastFilePath, rid, pid, db, c)
+						go uploadFileToOSS(event.Name, rid, pid, db, c)
 					}
 					lastFilePath = event.Name
 				}
