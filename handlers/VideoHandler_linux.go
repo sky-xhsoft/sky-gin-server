@@ -144,7 +144,7 @@ func (h *VideoHandler) StartCut(c *gin.Context) {
 					var remain []string
 					for _, f := range pendingFiles {
 						if isFileStable(f, 4) {
-							go uploadFileToOSS(f, rid, pid, db, nil)
+							go uploadFileToOSS(f, rid, pid, db, c)
 						} else {
 							remain = append(remain, f)
 						}
@@ -184,7 +184,6 @@ func isFileStable(path string, stableTimes int) bool {
 			return false
 		}
 		size := info.Size()
-		log.Println(path, size, lastSize)
 		if size == lastSize {
 			unchanged++
 		} else {
