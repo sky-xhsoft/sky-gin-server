@@ -12,6 +12,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/fsnotify/fsnotify"
@@ -57,9 +58,10 @@ var cutProcessesLock sync.Mutex
 var processedFiles = make(map[string]bool)
 var mu sync.Mutex // 保证并发安全
 
-// StartCut 启动直播流分段录制并监听目录上传切片至 OSS
+var cutProcessesCancel = make(map[uint]context.CancelFunc)
+
+// StartCut 启动切片任务，且支持使用 context 取消两个同步协程
 func (h *VideoHandler) StartCut(c *gin.Context) {
-	//tx := utils.GetTx(c, h.db)
 	resourceID := c.Query("resourceId")
 	if resourceID == "" {
 		ecode.Resp(c, ecode.ErrInvalidParam, "缺少资源组ID")
@@ -75,25 +77,24 @@ func (h *VideoHandler) StartCut(c *gin.Context) {
 
 	outputDir := fmt.Sprintf("tmp/outcut/%d", *item.ChrResourceId)
 	outputTemplate := filepath.Join(outputDir, "%Y-%m-%d_%H-%M-%S.mp4")
-
 	if err := utils.EnsureDir(outputDir); err != nil {
 		ecode.Resp(c, ecode.ErrServer, "无法创建输出目录")
 		return
 	}
 
-	go func(rtmpUrl, outputTemplate, cutTime string, rid *uint, pid uint, db *gorm.DB) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cutProcessesCancel[*item.ChrResourceId] = cancel
 
+	go func(rtmpUrl, outputTemplate, cutTime string, rid *uint, pid uint, db *gorm.DB, ctx context.Context) {
 		defer func() {
 			cutProcessesLock.Lock()
 			delete(cutProcesses, *rid)
+			delete(cutProcessesCancel, *rid)
 			cutProcessesLock.Unlock()
-			h.db.Model(&models.ChrResource{}).
-				Where("ID = ?", *item.ChrResourceId).
-				Update("CUT_STATUS", 0)
+			h.db.Model(&models.ChrResource{}).Where("ID = ?", *rid).Update("CUT_STATUS", 0)
 		}()
 
 		log.Println("开始直播切片")
-
 		cmd := exec.Command("ffmpeg",
 			"-i", rtmpUrl,
 			"-c", "copy",
@@ -103,63 +104,96 @@ func (h *VideoHandler) StartCut(c *gin.Context) {
 			"-strftime", "1",
 			outputTemplate,
 		)
-
-		// 为进程设置独立的进程组，便于后续整体杀死
 		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
 		if err := cmd.Start(); err != nil {
 			log.Printf("ffmpeg 启动失败: %v", err)
 			return
 		}
-		h.db.Model(&models.ChrResource{}).
-			Where("ID = ?", *item.ChrResourceId).
-			Update("CUT_STATUS", 1)
 
+		h.db.Model(&models.ChrResource{}).Where("ID = ?", *rid).Update("CUT_STATUS", 1)
 		cutProcessesLock.Lock()
 		cutProcesses[*rid] = cmd
 		cutProcessesLock.Unlock()
 
 		watcher, err := fsnotify.NewWatcher()
 		if err != nil {
-			log.Printf("创建文件监控失败: %v", err)
+			log.Printf("创建监控失败: %v", err)
 			return
 		}
 		defer watcher.Close()
 
 		if err := watcher.Add(outputDir); err != nil {
-			log.Printf("监听目录失败: %v", err)
+			log.Printf("监控目录失败: %v", err)
 			return
 		}
 
-		//var lastFilePath string
+		var pendingFiles []string
+		var pendingMu sync.Mutex
+
+		go func() {
+			ticker := time.NewTicker(3 * time.Second)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ctx.Done():
+					log.Println("[切片任务] 上传监控退出")
+					return
+				case <-ticker.C:
+					pendingMu.Lock()
+					var remain []string
+					for _, f := range pendingFiles {
+						if isFileStable(f, 4) {
+							go uploadFileToOSS(f, rid, pid, db, nil)
+						} else {
+							remain = append(remain, f)
+						}
+					}
+					pendingFiles = remain
+					pendingMu.Unlock()
+				}
+			}
+		}()
+
 		for {
 			select {
+			case <-ctx.Done():
+				log.Println("[切片任务] 监控退出")
+				return
 			case event := <-watcher.Events:
-				if event.Op&fsnotify.CloseWrite == fsnotify.CloseWrite && strings.HasSuffix(event.Name, ".mp4") {
-					log.Println("新切片创建：" + event.Name)
-
-					mu.Lock()
-					if processedFiles[event.Name] {
-						mu.Unlock()
-						continue
-					}
-					processedFiles[event.Name] = true
-					mu.Unlock()
-
-					// 上传前一个文件
-					//if lastFilePath != "" {
-					go uploadFileToOSS(event.Name, rid, pid, db, c)
-					//}
-					//lastFilePath = event.Name
+				if event.Op&fsnotify.Create == fsnotify.Create && strings.HasSuffix(event.Name, ".mp4") {
+					pendingMu.Lock()
+					pendingFiles = append(pendingFiles, event.Name)
+					pendingMu.Unlock()
 				}
 			case err := <-watcher.Errors:
 				log.Printf("监控错误: %v", err)
 			}
 		}
-
-	}(item.RtmpUrl, outputTemplate, strconv.Itoa(*item.CutTimes), item.ChrResourceId, item.ProjectId, h.db)
+	}(item.RtmpUrl, outputTemplate, strconv.Itoa(*item.CutTimes), item.ChrResourceId, item.ProjectId, h.db, ctx)
 
 	ecode.SuccessResp(c, "切片任务已启动")
+}
+
+func isFileStable(path string, stableTimes int) bool {
+	var unchanged int
+	var lastSize int64 = -1
+	for i := 0; i < stableTimes; i++ {
+		info, err := os.Stat(path)
+		if err != nil {
+			return false
+		}
+		size := info.Size()
+		log.Println(path, size, lastSize)
+		if size == lastSize {
+			unchanged++
+		} else {
+			lastSize = size
+			unchanged = 1
+		}
+		time.Sleep(1 * time.Second)
+	}
+	return unchanged == stableTimes
 }
 
 func uploadFileToOSS(filePath string, rid *uint, pid uint, db *gorm.DB, c *gin.Context) {
@@ -209,36 +243,22 @@ func (h *VideoHandler) StopCut(c *gin.Context) {
 		return
 	}
 
-	var item models.ChrResourceItem
-	if err := h.db.Where("CHR_RESOURCE_ID = ? AND TYPE = ? AND IS_ACTIVE = 'Y'", resourceID, "RTMP").First(&item).Error; err != nil {
-		c.Error(err)
-		ecode.Resp(c, ecode.ErrRequest, "未找到资源")
-		return
-	}
-
 	cutProcessesLock.Lock()
-	cmd, exists := cutProcesses[*item.ChrResourceId]
+	cmd, exists := cutProcesses[uint(rid)]
+	cancelFunc, cancelExists := cutProcessesCancel[uint(rid)]
 	cutProcessesLock.Unlock()
 
-	if !exists || cmd == nil || cmd.Process == nil {
-		ecode.Resp(c, ecode.ErrRequest, "未找到运行中的切片任务")
-		return
+	if cancelExists {
+		cancelFunc() // 通知同步协程退出
 	}
 
-	// 杀掉整个进程组，负号表示进程组
-	if err := syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL); err != nil {
-		ecode.Resp(c, ecode.ErrServer, "停止切片失败: "+err.Error())
-		return
+	if exists && cmd != nil && cmd.Process != nil {
+		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 	}
 
 	h.db.Model(&models.ChrResource{}).
-		Where("ID = ?", *item.ChrResourceId).
+		Where("ID = ?", uint(rid)).
 		Update("CUT_STATUS", 0)
-
-	// 清理映射
-	cutProcessesLock.Lock()
-	delete(cutProcesses, uint(rid))
-	cutProcessesLock.Unlock()
 
 	ecode.SuccessResp(c, "切片任务已停止")
 }
