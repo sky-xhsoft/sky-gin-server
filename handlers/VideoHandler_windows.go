@@ -56,9 +56,6 @@ var cutProcesses = make(map[uint]*exec.Cmd) // 资源ID -> 进程
 var cutProcessesLock sync.Mutex
 var cutProcessesStdin = make(map[uint]io.WriteCloser)
 
-var processedFiles = make(map[string]bool)
-var mu sync.Mutex // 保证并发安全
-
 var cutProcessesCancel = make(map[uint]context.CancelFunc)
 
 // StartCut 启动切片任务，且支持使用 context 取消两个同步协程
