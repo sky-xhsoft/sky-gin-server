@@ -148,7 +148,7 @@ func (h *VideoHandler) StartCut(c *gin.Context) {
 
 					// 上传前一个文件
 					if lastFilePath != "" {
-						go uploadFileToOSS(lastFilePath, rid, pid, db)
+						go uploadFileToOSS(lastFilePath, rid, pid, db, c)
 					}
 					lastFilePath = event.Name
 				}
@@ -162,7 +162,7 @@ func (h *VideoHandler) StartCut(c *gin.Context) {
 	ecode.SuccessResp(c, "切片任务已启动")
 }
 
-func uploadFileToOSS(filePath string, rid *uint, pid uint, db *gorm.DB) {
+func uploadFileToOSS(filePath string, rid *uint, pid uint, db *gorm.DB, c *gin.Context) {
 	log.Printf("准备上传上一个切片: %s", filePath)
 
 	f, err := os.Open(filePath)
@@ -193,7 +193,7 @@ func uploadFileToOSS(filePath string, rid *uint, pid uint, db *gorm.DB) {
 		VideoFileType: fileRecord.FileType,
 		VideoParam:    string(param),
 	}
-	models.FillCreateMeta(nil, &item) // context 可选
+	models.FillCreateMeta(c, &item) // context 可选
 	db.Create(&item)
 }
 
