@@ -213,6 +213,7 @@ func uploadFileToOSS(filePath string, rid *uint, pid uint, db *gorm.DB, c *gin.C
 	var i models.ChrResourceItem
 	//判断切片是否已上传
 	if err := db.Where(" name = ? & chr_resource_id =?", filepath.Base(filePath), rid).First(&i).Error; err == nil && i.ID > 0 {
+		log.Printf("切片上传重复跳过: %v", filePath)
 		return
 	}
 
