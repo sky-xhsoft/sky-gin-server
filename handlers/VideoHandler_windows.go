@@ -217,6 +217,12 @@ func updateResourceStats(tx *gorm.DB, rid uint) {
 func uploadFileToOSS(filePath string, rid *uint, pid uint, db *gorm.DB, c *gin.Context) {
 	log.Printf("准备上传上一个切片: %s", filePath)
 
+	var i models.ChrResourceItem
+	//判断切片是否已上传
+	if err := db.Where(" name = ? & chr_resource_id =?", filepath.Base(filePath), rid).First(&i).Error; err == nil && i.ID > 0 {
+		return
+	}
+
 	f, err := os.Open(filePath)
 	if err != nil {
 		log.Printf("打开切片失败: %v", err)
