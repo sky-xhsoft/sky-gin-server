@@ -240,6 +240,28 @@ func uploadFileToOSS(filePath string, rid *uint, pid uint, db *gorm.DB, c *gin.C
 	}
 	models.FillCreateMeta(c, &item) // context 可选
 	db.Create(&item)
+	updateResourceStats(db, *rid)
+}
+
+func updateResourceStats(tx *gorm.DB, rid uint) {
+	var totalSize float64
+	var totalQty int64
+	var resource models.ChrResource
+
+	if err := tx.Model(&models.ChrResource{}).Where("ID =?", rid).First(&resource); err == nil {
+		return
+	}
+
+	tx.Model(&models.ChrResourceItem{}).
+		Where("CHR_PROJECT_ID = ? AND TYPE = ? AND IS_ACTIVE = 'Y'", resource.ProjectId, "VIDEO").
+		Count(&totalQty).
+		Select("COALESCE(SUM(VIDEO_FILE_SIZE), 0)").
+		Scan(&totalSize)
+
+	tx.Model(&models.ChrProject{}).Where("ID = ?", resource.ProjectId).Updates(map[string]interface{}{
+		"SIZE": totalSize,
+		"QTY":  totalQty,
+	})
 }
 
 func (h *VideoHandler) StopCut(c *gin.Context) {

@@ -193,6 +193,27 @@ func (h *VideoHandler) StartCut(c *gin.Context) {
 	ecode.SuccessResp(c, "切片任务已启动")
 }
 
+func updateResourceStats(tx *gorm.DB, rid uint) {
+	var totalSize float64
+	var totalQty int64
+	var resource models.ChrResource
+
+	if err := tx.Model(&models.ChrResource{}).Where("ID =?", rid).First(&resource); err == nil {
+		return
+	}
+
+	tx.Model(&models.ChrResourceItem{}).
+		Where("CHR_PROJECT_ID = ? AND TYPE = ? AND IS_ACTIVE = 'Y'", resource.ProjectId, "VIDEO").
+		Count(&totalQty).
+		Select("COALESCE(SUM(VIDEO_FILE_SIZE), 0)").
+		Scan(&totalSize)
+
+	tx.Model(&models.ChrProject{}).Where("ID = ?", resource.ProjectId).Updates(map[string]interface{}{
+		"SIZE": totalSize,
+		"QTY":  totalQty,
+	})
+}
+
 func uploadFileToOSS(filePath string, rid *uint, pid uint, db *gorm.DB, c *gin.Context) {
 	log.Printf("准备上传上一个切片: %s", filePath)
 
@@ -226,6 +247,7 @@ func uploadFileToOSS(filePath string, rid *uint, pid uint, db *gorm.DB, c *gin.C
 	}
 	models.FillCreateMeta(c, &item) // context 可选
 	db.Create(&item)
+	updateResourceStats(db, *rid)
 }
 
 func (h *VideoHandler) StopCut(c *gin.Context) {
