@@ -219,7 +219,7 @@ func uploadFileToOSS(filePath string, rid *uint, pid uint, db *gorm.DB, c *gin.C
 
 	var i models.ChrResourceItem
 	//判断切片是否已上传
-	if err := db.Where(" name = ? & chr_resource_id =?", filepath.Base(filePath), rid).First(&i).Error; err == nil && i.ID > 0 {
+	if err := db.Where(" name = ? and chr_resource_id =?", filepath.Base(filePath), rid).First(&i).Error; err == nil && i.ID > 0 {
 		return
 	}
 
