@@ -17,6 +17,7 @@ type ChrResource struct {
 	RecordingStatus int               `gorm:"column:RECORDING_STATUS" json:"recordingStatus"`
 	Size            float64           `gorm:"column:SIZE" json:"size"`
 	Qty             int               `gorm:"column:QTY" json:"qty"`
+	HeadImg         string            `gorm:"column:HEAD_IMG" json:"headImg"`
 	Items           []ChrResourceItem `gorm:"-" json:"items"`
 }
 

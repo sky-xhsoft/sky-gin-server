@@ -39,6 +39,19 @@ type Redis struct {
 type System struct {
 	Port    string `mapstructure:"port" json:"port" yaml:"port"`          //服务开启端口
 	LogPath string `mapstructure:"logPath" json:"logPath" yaml:"logPath"` //服务开启端口
+
+	Project Project `yaml:"project"`
+
+	ShareUrl string `yaml:"shareUrl"` // 分享访问地址前缀
+}
+
+type Project struct {
+	Name            string `yaml:"name"`                    // 项目名称
+	Lang            string `yaml:"lang"`                    // 系统语言
+	HeadLoginToken  string `yaml:"head-login-token"`        // 登录 token
+	HeadSignToken   string `yaml:"head-sign-token"`         // 签名 token
+	MaxReqPerSecond int    `yaml:"max-requests-per-second"` // 限流
+	SessionTTL      int    `yaml:"session-ttl"`             // 登录 Session TT
 }
 
 type OssConfig struct {

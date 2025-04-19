@@ -122,7 +122,8 @@ func (h *ResourceHandler) ListResources(c *gin.Context) {
 	}
 
 	var list []models.ChrResource
-	if err := tx.Where("CHR_PROJECT_ID = ? AND IS_ACTIVE = 'Y'", projectID).Find(&list).Error; err != nil {
+	if err := tx.Where("CHR_PROJECT_ID = ? AND IS_ACTIVE = 'Y' ", projectID).
+		Order("CREATE_TIME desc").Find(&list).Error; err != nil {
 		c.Error(err)
 		ecode.Resp(c, ecode.ErrServer, err.Error())
 		return

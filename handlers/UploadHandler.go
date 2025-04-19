@@ -7,7 +7,6 @@ import (
 	"github.com/sky-xhsoft/sky-gin-server/core"
 	"github.com/sky-xhsoft/sky-gin-server/pkg/ossUtil"
 	"net/http"
-	"strconv"
 )
 
 // UploadHandler 兼容动态注册
@@ -31,7 +30,7 @@ func init() {
 // 上传处理逻辑
 func (h *UploadHandler) UploadFile(c *gin.Context) {
 	// 解析参数
-	projectID, _ := strconv.ParseUint(c.PostForm("project_id"), 10, 64)
+	//projectID, _ := strconv.ParseUint(c.PostForm("project_id"), 10, 64)
 	//parentID, _ := strconv.ParseUint(c.PostForm("parent_id"), 10, 64)
 
 	file, err := c.FormFile("file")
@@ -49,7 +48,7 @@ func (h *UploadHandler) UploadFile(c *gin.Context) {
 
 	// 生成 OSS Key 并上传
 	ossKey := fmt.Sprintf("uploads/%s", file.Filename)
-	ossUrl, err := ossUtil.GetClient().UploadSingleFile(c, file, ossKey, strconv.FormatUint(projectID, 10))
+	ossUrl, err := ossUtil.GetClient().UploadSingleFile(c, file, ossKey)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "OSS upload failed"})
 		return

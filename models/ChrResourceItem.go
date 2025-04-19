@@ -21,6 +21,7 @@ type ChrResourceItem struct {
 	VideoParam    string  `gorm:"column:VIDEO_PARAM" json:"videoParam"`
 	VideoFileType string  `gorm:"column:VIDEO_FILE_TYPE" json:"videoFileType"`
 	VideoFileSize float64 `gorm:"column:VIDEO_FILE_SIZE" json:"videoFileSize"`
+	HeadImg       string  `gorm:"column:HEAD_IMG" json:"headImg"`
 }
 
 func (ChrResourceItem) TableName() string {

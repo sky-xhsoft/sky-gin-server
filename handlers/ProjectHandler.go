@@ -140,12 +140,13 @@ func (h *ProjectHandler) RemoveProjectUser(c *gin.Context) {
 	tx := utils.GetTx(c, h.db)
 
 	id := c.Query("ID")
+	userid := c.Query("USER_ID")
 	if id == "" {
 		ecode.Resp(c, ecode.ErrInvalidParam, "缺少 ID")
 		return
 	}
 
-	if err := tx.Model(&models.ChrProjectUser{}).Where("ID = ?", id).Update("IS_ACTIVE", "N").Error; err != nil {
+	if err := tx.Model(&models.ChrProjectUser{}).Where("CHR_PROJECT_ID = ? and SYS_USER_ID= ?", id, userid).Update("IS_ACTIVE", "N").Error; err != nil {
 		c.Error(err)
 		ecode.Resp(c, ecode.ErrServer, err.Error())
 		return
@@ -167,7 +168,8 @@ func (h *ProjectHandler) ListMyProjects(c *gin.Context) {
 	var projectIDs []uint
 	if err := tx.Model(&models.ChrProjectUser{}).
 		Where("SYS_USER_ID = ? AND IS_ACTIVE = 'Y'", user.ID).
-		Pluck("CHR_PROJECT_ID", &projectIDs).Error; err != nil {
+		Pluck("CHR_PROJECT_ID", &projectIDs).
+		Order("CREATE_TIME desc").Error; err != nil {
 		c.Error(err)
 		ecode.Resp(c, ecode.ErrServer, err.Error())
 		return
@@ -213,7 +215,7 @@ func (h *ProjectHandler) ListResourceItemByProject(c *gin.Context) {
 
 	for k, v := range resources {
 		var items []models.ChrResourceItem
-		if err := tx.Where("CHR_RESOURCE_ID =? and IS_ACTIVE='Y' ", v.ID).
+		if err := tx.Where("CHR_RESOURCE_ID =? and TYPE='VIDEO' and IS_ACTIVE='Y' ", v.ID).
 			Order("CREATE_TIME desc").Find(&items).Error; err != nil {
 			continue
 		}
