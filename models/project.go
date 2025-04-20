@@ -10,16 +10,16 @@ package models
 
 type ChrProject struct {
 	Base
-	Name     string        `gorm:"column:NAME" json:"name"`
-	Type     string        `gorm:"column:TYPE" json:"type"`          // LL/ZY
-	IsScreen string        `gorm:"column:IS_SCREEN" json:"isScreen"` // Y/N
-	Prem     string        `gorm:"column:PREM" json:"prem"`          // 默认权限
-	Size     float64       `gorm:"column:SIZE" json:"size"`
-	Qty      int           `gorm:"column:QTY" json:"qty"`
-	HeadImg  string        `gorm:"column:HEAD_IMG" json:"headImg"`
-	Resouse  []ChrResource `gorm:"-" json:"resouse"`
-
-	Files []SysDiskFile `gorm:"-" json:"files"`
+	Name        string         `gorm:"column:NAME" json:"name"`
+	Type        string         `gorm:"column:TYPE" json:"type"`          // LL/ZY
+	IsScreen    string         `gorm:"column:IS_SCREEN" json:"isScreen"` // Y/N
+	Prem        string         `gorm:"column:PREM" json:"prem"`          // 默认权限
+	Size        float64        `gorm:"column:SIZE" json:"size"`
+	Qty         int            `gorm:"column:QTY" json:"qty"`
+	HeadImg     string         `gorm:"column:HEAD_IMG" json:"headImg"`
+	Resouse     []ChrResource  `gorm:"-" json:"resouse"`
+	ProjectUser ChrProjectUser `gorm:"-" json:"projectUser"`
+	Files       []SysDiskFile  `gorm:"-" json:"files"`
 }
 
 func (ChrProject) TableName() string {

@@ -165,14 +165,19 @@ func (h *ProjectHandler) ListMyProjects(c *gin.Context) {
 	}
 	user := userVal.(*models.SysUser)
 
-	var projectIDs []uint
+	var projectUsers []models.ChrProjectUser
 	if err := tx.Model(&models.ChrProjectUser{}).
 		Where("SYS_USER_ID = ? AND IS_ACTIVE = 'Y'", user.ID).
-		Pluck("CHR_PROJECT_ID", &projectIDs).
-		Order("CREATE_TIME desc").Error; err != nil {
+		Order("CREATE_TIME desc").
+		Find(&projectUsers).Error; err != nil {
 		c.Error(err)
 		ecode.Resp(c, ecode.ErrServer, err.Error())
 		return
+	}
+
+	projectIDs := make([]uint, 0, len(projectUsers))
+	for _, pu := range projectUsers {
+		projectIDs = append(projectIDs, pu.ProjectId)
 	}
 
 	// 解析前端传入的排序参数，默认降序
@@ -188,6 +193,14 @@ func (h *ProjectHandler) ListMyProjects(c *gin.Context) {
 		c.Error(err)
 		ecode.Resp(c, ecode.ErrServer, err.Error())
 		return
+	}
+
+	for pi, v := range projects {
+		for _, i := range projectUsers {
+			if v.ID == i.ProjectId {
+				projects[pi].ProjectUser = i
+			}
+		}
 	}
 
 	ecode.SuccessResp(c, projects)

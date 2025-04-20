@@ -14,6 +14,6 @@ import (
 )
 
 func TestName(t *testing.T) {
-	password, _ := HashPassword("abc123")
+	password, _ := HashPassword("Chery2025")
 	fmt.Println(password)
 }
