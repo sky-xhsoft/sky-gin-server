@@ -94,7 +94,7 @@ func (h *RecordingHandler) StartRecording(c *gin.Context) {
 			"-i", rtmpUrl,
 			"-c", "copy",
 			"-f", "segment",
-			"-segment_time", "3600",
+			"-segment_time", "10800",
 			"-reset_timestamps", "1",
 			"-strftime", "1",
 			outputTemplate,
