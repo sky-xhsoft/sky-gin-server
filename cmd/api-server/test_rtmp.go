@@ -27,6 +27,7 @@ func main_trmp() {
 	cmd := exec.Command("ffmpeg",
 		"-i", rtmpURL, // 输入流
 		"-c", "copy", // 不重新编码，节省资源
+		"-c:a", "aac", // 强制音频重编码为 AAC
 		"-f", "segment", // 使用分段模式
 		"-segment_time", "60", // 每 60 秒一个切片
 		"-reset_timestamps", "1", // 重置时间戳，避免播放问题

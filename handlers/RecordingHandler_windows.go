@@ -92,6 +92,7 @@ func (h *RecordingHandler) StartRecording(c *gin.Context) {
 		cmd := exec.Command("ffmpeg",
 			"-i", rtmpUrl,
 			"-c", "copy",
+			"-c:a", "aac", // 强制音频重编码为 AAC
 			"-f", "segment",
 			"-segment_time", "10800",
 			"-reset_timestamps", "1",

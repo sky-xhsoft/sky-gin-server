@@ -97,6 +97,7 @@ func (h *VideoHandler) StartCut(c *gin.Context) {
 		cmd := exec.Command("ffmpeg",
 			"-i", rtmpUrl,
 			"-c", "copy",
+			"-c:a", "aac", // 强制音频重编码为 AAC
 			"-f", "segment",
 			"-segment_time", cutTime,
 			"-reset_timestamps", "1",
