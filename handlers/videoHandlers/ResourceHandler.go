@@ -6,11 +6,12 @@
 // Project Description:
 // ----------------------------------------------------------------------------
 
-package handlers
+package videoHandlers
 
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/sky-xhsoft/sky-gin-server/core"
+	"github.com/sky-xhsoft/sky-gin-server/handlers"
 	"github.com/sky-xhsoft/sky-gin-server/models"
 	"github.com/sky-xhsoft/sky-gin-server/pkg/ecode"
 	"github.com/sky-xhsoft/sky-gin-server/pkg/utils"
@@ -26,14 +27,13 @@ func (h *ResourceHandler) HandlerName() string {
 }
 
 func init() {
-	Register("ResourceHandler", &ResourceHandler{})
+	handlers.Register("ResourceHandler", &ResourceHandler{})
 }
 
 func (h *ResourceHandler) SetOption(ctx *core.AppContext) {
 	h.db = ctx.DB
 }
 
-// 创建资源组
 // 创建资源组
 func (h *ResourceHandler) CreateResource(c *gin.Context) {
 	tx := utils.GetTx(c, h.db)

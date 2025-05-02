@@ -1,15 +1,12 @@
 // ----------------------------------------------------------------------------
 // Project Name: sky-gin-server
-// File Name: RecordingHandler_linux.go
+// File Name: RecordingHandler.go
 // Author: xhsoftware-skyzhou
 // Created On: 2025/4/17
 // Project Description:
 // ----------------------------------------------------------------------------
 
-//go:build linux
-// +build linux
-
-package handlers
+package videoHandlers
 
 import (
 	"context"
@@ -17,6 +14,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/gin-gonic/gin"
 	"github.com/sky-xhsoft/sky-gin-server/core"
+	"github.com/sky-xhsoft/sky-gin-server/handlers"
 	"github.com/sky-xhsoft/sky-gin-server/models"
 	"github.com/sky-xhsoft/sky-gin-server/pkg/ecode"
 	"github.com/sky-xhsoft/sky-gin-server/pkg/utils"
@@ -41,7 +39,7 @@ func (h *RecordingHandler) HandlerName() string {
 }
 
 func init() {
-	Register("RecordingHandler", &RecordingHandler{})
+	handlers.Register("RecordingHandler", &RecordingHandler{})
 }
 
 func (h *RecordingHandler) SetOption(ctx *core.AppContext) {
@@ -183,6 +181,7 @@ func (h *RecordingHandler) StartRecording(c *gin.Context) {
 	ecode.SuccessResp(c, "切片任务已启动")
 }
 
+// 终止直播切片
 func (h *RecordingHandler) StopRecording(c *gin.Context) {
 	resourceID := c.Query("resourceId")
 	if resourceID == "" {

@@ -6,11 +6,12 @@
 // Project Description:
 // ----------------------------------------------------------------------------
 
-package handlers
+package videoHandlers
 
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/sky-xhsoft/sky-gin-server/core"
+	"github.com/sky-xhsoft/sky-gin-server/handlers"
 	"github.com/sky-xhsoft/sky-gin-server/internal/shortlink"
 	"net/http"
 )
@@ -25,7 +26,7 @@ func (h *ShortLinkHandler) HandlerName() string {
 }
 
 func init() {
-	Register("ShortLinkHandler", &ShortLinkHandler{})
+	handlers.Register("ShortLinkHandler", &ShortLinkHandler{})
 }
 
 // SetOption 注入上下文

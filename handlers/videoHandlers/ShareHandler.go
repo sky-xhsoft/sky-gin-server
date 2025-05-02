@@ -6,12 +6,13 @@
 // Project Description:
 // ----------------------------------------------------------------------------
 
-package handlers
+package videoHandlers
 
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/sky-xhsoft/sky-gin-server/config"
 	"github.com/sky-xhsoft/sky-gin-server/core"
+	"github.com/sky-xhsoft/sky-gin-server/handlers"
 	"github.com/sky-xhsoft/sky-gin-server/models"
 	"github.com/sky-xhsoft/sky-gin-server/pkg/ecode"
 	"github.com/sky-xhsoft/sky-gin-server/pkg/utils"
@@ -29,7 +30,7 @@ func (h *ShareHandler) HandlerName() string {
 }
 
 func init() {
-	Register("ShareHandler", &ShareHandler{})
+	handlers.Register("ShareHandler", &ShareHandler{})
 }
 
 func (h *ShareHandler) SetOption(ctx *core.AppContext) {

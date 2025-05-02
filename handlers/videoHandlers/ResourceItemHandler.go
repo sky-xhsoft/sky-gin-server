@@ -6,12 +6,13 @@
 // Project Description:
 // ----------------------------------------------------------------------------
 
-package handlers
+package videoHandlers
 
 import (
 	"encoding/json"
 	"github.com/gin-gonic/gin"
 	"github.com/sky-xhsoft/sky-gin-server/core"
+	"github.com/sky-xhsoft/sky-gin-server/handlers"
 	"github.com/sky-xhsoft/sky-gin-server/models"
 	"github.com/sky-xhsoft/sky-gin-server/pkg/ecode"
 	"github.com/sky-xhsoft/sky-gin-server/pkg/ossUtil"
@@ -30,7 +31,7 @@ func (h *ResourceItemHandler) HandlerName() string {
 }
 
 func init() {
-	Register("ResourceItemHandler", &ResourceItemHandler{})
+	handlers.Register("ResourceItemHandler", &ResourceItemHandler{})
 }
 
 func (h *ResourceItemHandler) SetOption(ctx *core.AppContext) {

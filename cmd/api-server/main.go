@@ -15,6 +15,7 @@ import (
 	"github.com/sky-xhsoft/sky-gin-server/config"
 	"github.com/sky-xhsoft/sky-gin-server/core"
 	"github.com/sky-xhsoft/sky-gin-server/handlers"
+	_ "github.com/sky-xhsoft/sky-gin-server/handlers/videoHandlers"
 	"github.com/sky-xhsoft/sky-gin-server/pkg/log"
 	"github.com/sky-xhsoft/sky-gin-server/store"
 	"go.uber.org/fx"

@@ -5,11 +5,7 @@
 // Created On: 2025/4/15
 // Project Description:
 // ----------------------------------------------------------------------------
-
-//go:build windows
-// +build windows
-
-package handlers
+package videoHandlers
 
 import (
 	"context"
@@ -18,12 +14,12 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/gin-gonic/gin"
 	"github.com/sky-xhsoft/sky-gin-server/core"
+	"github.com/sky-xhsoft/sky-gin-server/handlers"
 	"github.com/sky-xhsoft/sky-gin-server/models"
 	"github.com/sky-xhsoft/sky-gin-server/pkg/ecode"
 	"github.com/sky-xhsoft/sky-gin-server/pkg/ossUtil"
 	"github.com/sky-xhsoft/sky-gin-server/pkg/utils"
 	"gorm.io/gorm"
-	"io"
 	"log"
 	"math"
 	"net/http"
@@ -33,6 +29,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -45,7 +42,7 @@ func (h *VideoHandler) HandlerName() string {
 }
 
 func init() {
-	Register("VideoHandler", &VideoHandler{})
+	handlers.Register("VideoHandler", &VideoHandler{})
 }
 
 func (h *VideoHandler) SetOption(ctx *core.AppContext) {
@@ -54,7 +51,9 @@ func (h *VideoHandler) SetOption(ctx *core.AppContext) {
 
 var cutProcesses = make(map[uint]*exec.Cmd) // 资源ID -> 进程
 var cutProcessesLock sync.Mutex
-var cutProcessesStdin = make(map[uint]io.WriteCloser)
+
+var processedFiles = make(map[string]bool)
+var mu sync.Mutex // 保证并发安全
 
 var cutProcessesCancel = make(map[uint]context.CancelFunc)
 
@@ -88,7 +87,6 @@ func (h *VideoHandler) StartCut(c *gin.Context) {
 			cutProcessesLock.Lock()
 			delete(cutProcesses, *rid)
 			delete(cutProcessesCancel, *rid)
-			delete(cutProcessesStdin, *rid)
 			cutProcessesLock.Unlock()
 			h.db.Model(&models.ChrResource{}).Where("ID = ?", *rid).Update("CUT_STATUS", 0)
 		}()
@@ -103,12 +101,7 @@ func (h *VideoHandler) StartCut(c *gin.Context) {
 			"-strftime", "1",
 			outputTemplate,
 		)
-
-		stdin, err := cmd.StdinPipe()
-		if err != nil {
-			log.Printf("无法获取 ffmpeg stdin: %v", err)
-			return
-		}
+		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
 		if err := cmd.Start(); err != nil {
 			log.Printf("ffmpeg 启动失败: %v", err)
@@ -118,25 +111,23 @@ func (h *VideoHandler) StartCut(c *gin.Context) {
 		h.db.Model(&models.ChrResource{}).Where("ID = ?", *rid).Update("CUT_STATUS", 1)
 		cutProcessesLock.Lock()
 		cutProcesses[*rid] = cmd
-		cutProcessesStdin[*rid] = stdin
 		cutProcessesLock.Unlock()
 
 		watcher, err := fsnotify.NewWatcher()
 		if err != nil {
-			log.Println("创建监控失败: %v", err)
+			log.Printf("创建监控失败: %v", err)
 			return
 		}
 		defer watcher.Close()
 
 		if err := watcher.Add(outputDir); err != nil {
-			log.Println("监控目录失败: %v", err)
+			log.Printf("监控目录失败: %v", err)
 			return
 		}
 
 		var pendingFiles []string
 		var pendingMu sync.Mutex
 
-		//监控文件是否稳定并上传
 		go func() {
 			ticker := time.NewTicker(3 * time.Second)
 			defer ticker.Stop()
@@ -193,25 +184,24 @@ func (h *VideoHandler) StartCut(c *gin.Context) {
 	ecode.SuccessResp(c, "切片任务已启动")
 }
 
-func updateResourceStats(tx *gorm.DB, rid uint) {
-	var totalSize float64
-	var totalQty int64
-	var resource models.ChrResource
-
-	if err := tx.Model(&models.ChrResource{}).Where("ID =?", rid).First(&resource); err == nil {
-		return
+func isFileStable(path string, stableTimes int) bool {
+	var unchanged int
+	var lastSize int64 = -1
+	for i := 0; i < stableTimes; i++ {
+		info, err := os.Stat(path)
+		if err != nil {
+			return false
+		}
+		size := info.Size()
+		if size == lastSize {
+			unchanged++
+		} else {
+			lastSize = size
+			unchanged = 1
+		}
+		time.Sleep(1 * time.Second)
 	}
-
-	tx.Model(&models.ChrResourceItem{}).
-		Where("CHR_PROJECT_ID = ? AND TYPE = ? AND IS_ACTIVE = 'Y'", resource.ProjectId, "VIDEO").
-		Count(&totalQty).
-		Select("COALESCE(SUM(VIDEO_FILE_SIZE), 0)").
-		Scan(&totalSize)
-
-	tx.Model(&models.ChrProject{}).Where("ID = ?", resource.ProjectId).Updates(map[string]interface{}{
-		"SIZE": totalSize,
-		"QTY":  totalQty,
-	})
+	return unchanged == stableTimes
 }
 
 func uploadFileToOSS(filePath string, rid *uint, pid uint, db *gorm.DB, c *gin.Context) {
@@ -220,6 +210,7 @@ func uploadFileToOSS(filePath string, rid *uint, pid uint, db *gorm.DB, c *gin.C
 	var i models.ChrResourceItem
 	//判断切片是否已上传
 	if err := db.Where(" name = ? and chr_resource_id =?", filepath.Base(filePath), rid).First(&i).Error; err == nil && i.ID > 0 {
+		log.Printf("切片上传重复跳过: %v", filePath)
 		return
 	}
 
@@ -256,6 +247,27 @@ func uploadFileToOSS(filePath string, rid *uint, pid uint, db *gorm.DB, c *gin.C
 	updateResourceStats(db, *rid)
 }
 
+func updateResourceStats(tx *gorm.DB, rid uint) {
+	var totalSize float64
+	var totalQty int64
+	var resource models.ChrResource
+
+	if err := tx.Model(&models.ChrResource{}).Where("ID =?", rid).First(&resource); err == nil {
+		return
+	}
+
+	tx.Model(&models.ChrResourceItem{}).
+		Where("CHR_PROJECT_ID = ? AND TYPE = ? AND IS_ACTIVE = 'Y'", resource.ProjectId, "VIDEO").
+		Count(&totalQty).
+		Select("COALESCE(SUM(VIDEO_FILE_SIZE), 0)").
+		Scan(&totalSize)
+
+	tx.Model(&models.ChrProject{}).Where("ID = ?", resource.ProjectId).Updates(map[string]interface{}{
+		"SIZE": totalSize,
+		"QTY":  totalQty,
+	})
+}
+
 func (h *VideoHandler) StopCut(c *gin.Context) {
 	resourceID := c.Query("resourceId")
 	if resourceID == "" {
@@ -271,16 +283,10 @@ func (h *VideoHandler) StopCut(c *gin.Context) {
 	cutProcessesLock.Lock()
 	cmd, exists := cutProcesses[uint(rid)]
 	cancelFunc, cancelExists := cutProcessesCancel[uint(rid)]
-	stdin, stdinExists := cutProcessesStdin[uint(rid)]
 	cutProcessesLock.Unlock()
 
 	if exists && cmd != nil && cmd.Process != nil {
-		if stdinExists {
-			_, _ = stdin.Write([]byte("q\n"))
-			log.Println("已向 ffmpeg 发送 q 指令以优雅退出")
-		} else {
-			_ = cmd.Process.Kill()
-		}
+		_ = syscall.Kill(cmd.Process.Pid, syscall.SIGINT)
 	}
 
 	if cancelExists {
@@ -293,46 +299,6 @@ func (h *VideoHandler) StopCut(c *gin.Context) {
 		Update("CUT_STATUS", 0)
 
 	ecode.SuccessResp(c, "切片任务已停止")
-}
-
-func isFileStable(path string, stableTimes int) bool {
-	var unchanged int
-	var lastSize int64 = -1
-	for i := 0; i < stableTimes; i++ {
-		info, err := os.Stat(path)
-		if err != nil {
-			return false
-		}
-		size := info.Size()
-		if size == lastSize {
-			unchanged++
-		} else {
-			lastSize = size
-			unchanged = 1
-		}
-		time.Sleep(1 * time.Second)
-	}
-	return unchanged == stableTimes
-}
-
-func waitForCompleteWrite(path string, checkInterval time.Duration, maxWait time.Duration) bool {
-	var prevSize int64 = -1
-	start := time.Now()
-
-	for time.Since(start) < maxWait {
-		fi, err := os.Stat(path)
-		if err != nil {
-			return false
-		}
-		currSize := fi.Size()
-		if currSize > 0 && currSize == prevSize {
-			return true // 文件大小稳定
-		}
-		prevSize = currSize
-		time.Sleep(checkInterval)
-		start = time.Now()
-	}
-	return false
 }
 
 // GenerateHLS 调用 ffmpeg 生成 HLS 并返回播放路径（支持 html 播放）
@@ -412,21 +378,21 @@ func (h *VideoHandler) PlayPage(c *gin.Context) {
 		<title>HLS 播放</title>
 	</head>
 	<body>
-		<video id="video"  controls autoplay muted></video>
+		<videoHandlers id="videoHandlers"  controls autoplay muted></videoHandlers>
 		<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 		<script>
 			if(Hls.isSupported()) {
-				var video = document.getElementById('video');
+				var videoHandlers = document.getElementById('videoHandlers');
 				var hls = new Hls();
 				hls.loadSource("/static/hls_output/%s/stream.m3u8");
-				hls.attachMedia(video);
+				hls.attachMedia(videoHandlers);
 				hls.on(Hls.Events.MANIFEST_PARSED, function() {
-					video.play();
+					videoHandlers.play();
 				});
-			} else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-				video.src = "/static/hls_output/%s/stream.m3u8";
-				video.addEventListener('loadedmetadata', function() {
-					video.play();
+			} else if (videoHandlers.canPlayType('application/vnd.apple.mpegurl')) {
+				videoHandlers.src = "/static/hls_output/%s/stream.m3u8";
+				videoHandlers.addEventListener('loadedmetadata', function() {
+					videoHandlers.play();
 				});
 			}
 		</script>
