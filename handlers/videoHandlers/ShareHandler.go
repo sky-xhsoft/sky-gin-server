@@ -127,7 +127,7 @@ func (h *ShareHandler) GetShare(c *gin.Context) {
 
 			var items []models.ChrResourceItem
 			if share.ChrResourceItemID != nil {
-				if err := h.db.Where(" ID = ?", share.ChrResourceItemID).First(&items).Error; err != nil {
+				if err := h.db.Where(" ID = ? and type = 'VIDEO' ", share.ChrResourceItemID).First(&items).Error; err != nil {
 					ecode.Resp(c, ecode.ErrRequest, "分享链接无效或资源不存在")
 					return
 				}
@@ -147,7 +147,7 @@ func (h *ShareHandler) GetShare(c *gin.Context) {
 
 				for k, v := range resource {
 					var items []models.ChrResourceItem
-					if err := h.db.Where(" CHR_RESOURCE_ID = ?", v.ID).Find(&items).Error; err != nil {
+					if err := h.db.Where(" CHR_RESOURCE_ID = ? and Type='VIDEO' and is_active='Y' ", v.ID).Find(&items).Error; err != nil {
 						ecode.Resp(c, ecode.ErrRequest, "分享链接无效或资源不存在")
 						return
 					}
@@ -155,12 +155,21 @@ func (h *ShareHandler) GetShare(c *gin.Context) {
 				}
 				project.Resouse = resource
 			} else {
-				var files []models.SysDiskFile
-				if err := h.db.Where(" ID =? ", share.SysDiskFileID).Find(&files).Error; err != nil {
-					ecode.Resp(c, ecode.ErrRequest, "分享链接无效或资源不存在")
-					return
+				if *share.SysDiskFileID > 0 {
+					var files []models.SysDiskFile
+					if err := h.db.Where(" ID =? and is_active='Y' ", share.SysDiskFileID).Find(&files).Error; err != nil {
+						ecode.Resp(c, ecode.ErrRequest, "分享链接无效或资源不存在")
+						return
+					}
+					project.Files = files
+				} else {
+					var files []models.SysDiskFile
+					if err := h.db.Where(" project_id =? and is_active='Y' and parent_id=0", share.ChrProjectID).Find(&files).Error; err != nil {
+						ecode.Resp(c, ecode.ErrRequest, "分享链接无效或资源不存在")
+						return
+					}
+					project.Files = files
 				}
-				project.Files = files
 			}
 		}
 

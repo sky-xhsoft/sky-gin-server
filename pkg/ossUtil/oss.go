@@ -80,11 +80,20 @@ func (o *OSSClient) UploadSingleFile(ctx *gin.Context, fileHeader *multipart.Fil
 	// 生成文件key
 	fileKey := o.generateFileKey(fileHeader.Filename, customKey...)
 
+	ext := strings.ToLower(filepath.Ext(fileHeader.Filename))
+	isVideo := ext == ".mp4" || ext == ".mov" || ext == ".avi" || ext == ".webm"
+
+	meta := ""
+	if isVideo {
+		meta = fmt.Sprintf(`attachment; filename="%s"`, fileHeader.Filename)
+	}
+
 	// 创建OSS请求
 	putObjectRequest := &oss.PutObjectRequest{
-		Bucket: &o.bucket,
-		Key:    &fileKey,
-		Body:   file,
+		Bucket:             &o.bucket,
+		Key:                &fileKey,
+		Body:               file,
+		ContentDisposition: &meta,
 	}
 
 	// 执行上传
@@ -129,11 +138,20 @@ func (o *OSSClient) UploadLocalFile(file *os.File, fileName string, projectID *u
 		return nil, err
 	}
 
+	ext := strings.ToLower(filepath.Ext(fileName))
+	isVideo := ext == ".mp4" || ext == ".mov" || ext == ".avi" || ext == ".webm"
+
+	meta := ""
+	if isVideo {
+		meta = fmt.Sprintf(`attachment; filename="%s"`, fileName)
+	}
+
 	key := fmt.Sprintf("uploads/%d/%d_%s", *projectID, time.Now().UnixNano(), fileName)
 	_, err = o.client.PutObject(context.TODO(), &oss.PutObjectRequest{
-		Bucket: &o.bucket,
-		Key:    &key,
-		Body:   file,
+		Bucket:             &o.bucket,
+		Key:                &key,
+		Body:               file,
+		ContentDisposition: &meta,
 	})
 	if err != nil {
 		return nil, err
