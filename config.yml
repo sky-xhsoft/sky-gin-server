@@ -3,26 +3,42 @@ System:
     project:
         #项目名称
         name: sky-gin-server
+
         #语言
         lang: zh-ch
+
         #登录验证 Token，Header 中传递的参数
         head-login-token: Token
+
         #签名验证 Authorization，Header 中传递的参数
         head-sign-token: Authorization
+
         #每秒最大请求量
         max-requests-per-second: 1000
+
         #LoginSessionTTL 登录有效期为 24 小时
         session-ttl: 24
+
     port: "0.0.0.0:9090"
+    #shareUrl
+    shareUrl: "http://video.skyzhou.cn/index/"
 
 
 #数据Mysql
 Mysql:
-    dsn: "root:Abc123@tcp(localhost:3306)/skygin?charset=utf8mb4&parseTime=true&loc=Local"
+    dsn: "root:abc123@tcp(localhost:3306)/skygin?charset=utf8mb4&parseTime=true&loc=Local"
 
 #缓存 Redis
 Redis:
     addr: localhost
-    password: Abc123
+    password:
     db: 0
     port: 6379
+
+oss:
+    endpoint: ossUtil-cn-nanjing.aliyuncs.com
+    accessKeyId: LTAI5tLQrtBBguoiqJf8y9dU
+    accessKeySecret: gKhzy2z1arjpmpmCtGZetUcmLRD48X
+    bucketName: chery-international
+    baseUrl: chery-international.oss-cn-nanjing.aliyuncs.com
+    region: cn-nanjing

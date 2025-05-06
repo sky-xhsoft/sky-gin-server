@@ -29,7 +29,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 )
 
@@ -102,7 +101,7 @@ func (h *VideoHandler) StartCut(c *gin.Context) {
 			"-strftime", "1",
 			outputTemplate,
 		)
-		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+		//cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
 		if err := cmd.Start(); err != nil {
 			log.Printf("ffmpeg 启动失败: %v", err)
@@ -287,7 +286,7 @@ func (h *VideoHandler) StopCut(c *gin.Context) {
 	cutProcessesLock.Unlock()
 
 	if exists && cmd != nil && cmd.Process != nil {
-		_ = syscall.Kill(cmd.Process.Pid, syscall.SIGINT)
+		//_ = syscall.Kill(cmd.Process.Pid, syscall.SIGINT)
 	}
 
 	if cancelExists {

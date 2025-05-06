@@ -75,6 +75,7 @@ func main() {
 		//提供缓存服务
 		fx.Provide(store.NewRedis),
 
+		//提供全局gin服务
 		fx.Provide(gin.New),
 
 		core.ServerModule,
