@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
+	"io/ioutil"
 	"time"
 )
 
@@ -23,7 +24,9 @@ func GinLogger(log *zap.SugaredLogger) gin.HandlerFunc {
 		start := time.Now()
 		path := c.Request.URL.Path
 		query := c.Request.URL.RawQuery
-		body := c.Request.Body
+		// 读取请求体
+		bodyBytes, _ := ioutil.ReadAll(c.Request.Body)
+		c.Request.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes)) // 重置请求体，防止后续读取失败
 
 		blw := &bodyLogWriter{
 			body:           bytes.NewBufferString(""),
@@ -31,14 +34,16 @@ func GinLogger(log *zap.SugaredLogger) gin.HandlerFunc {
 		}
 		c.Writer = blw // 替换原始 Writer
 
+		// 继续处理请求
 		c.Next()
 
+		// 记录日志
 		log.Infow("HTTP Request",
 			"status", c.Writer.Status(),
 			"method", c.Request.Method,
 			"path", path,
 			"query", query,
-			"body", body,
+			"body", string(bodyBytes), // 请求体
 			"response", blw.body.String(),
 			"ip", c.ClientIP(),
 			"latency", time.Since(start),

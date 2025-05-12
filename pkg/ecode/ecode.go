@@ -24,3 +24,7 @@ func SuccessResp(c *gin.Context, data interface{}) {
 func ErrorResp(c *gin.Context, code int) {
 	Resp(c, code, nil)
 }
+
+func ErrorRespWithData(c *gin.Context, code int, data interface{}) {
+	Resp(c, code, data)
+}

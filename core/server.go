@@ -48,6 +48,7 @@ var ServerModule = fx.Module("Server",
 
 	fx.Invoke(func(s *Server) {
 		s.Engine.Static("/static/", "./static/")
+
 		s.Engine.Use(middleware.CORSMiddleware(), middleware.GinLogger(s.Log), gin.Recovery())
 	}),
 

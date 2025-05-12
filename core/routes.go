@@ -44,7 +44,7 @@ func (rb *RouteBinder) LoadRoutes() error {
 
 	var routes = []models.SysRoutes{}
 
-	if err := rb.db.Table("sys_routes").Where("IS_ACTIVE = 'Y'").Find(&routes).Error; err != nil {
+	if err := rb.db.Table("sys_api").Where("IS_ACTIVE = 'Y'").Find(&routes).Error; err != nil {
 		rb.log.Error("加载路由失败:", err)
 		return err
 	}

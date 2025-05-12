@@ -22,7 +22,17 @@ type Config struct {
 
 	System System `mapstructure:"System" json:"System" yaml:"System"` //system配置文件
 
-	Oss OssConfig `yaml:"ossUtil"` //阿里云配置文件
+	Oss OssConfig `yaml:"oss"` //阿里云配置文件
+
+	Sms Sms `yaml:"sms"` //阿里云配置文件
+
+}
+
+type Sms struct {
+	AccessKeyId     string `yaml:"accessKeyId"`
+	AccessKeySecret string `yaml:"accessKeySecret"`
+	SignName        string `yaml:"signName"`
+	TemplateCode    string `yaml:"templateCode"`
 }
 
 // mysql详细配置
