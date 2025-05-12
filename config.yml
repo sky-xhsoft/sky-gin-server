@@ -20,7 +20,8 @@ System:
         session-ttl: 24
 
     port: "0.0.0.0:9090"
-    #shareUrl
+
+    #默认分享url
     shareUrl: "http://video.skyzhou.cn/index/"
 
 

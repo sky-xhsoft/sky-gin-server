@@ -25,10 +25,12 @@ type Config struct {
 	Oss OssConfig `yaml:"ossUtil"` //阿里云配置文件
 }
 
+// mysql详细配置
 type Mysql struct {
 	DSN string `mapstructure:"dsn"`
 }
 
+// redis 详细配置
 type Redis struct {
 	Addr     string `mapstructure:"addr" json:"addr" yaml:"addr"`
 	Password string `mapstructure:"password" json:"password" yaml:"password"`
@@ -36,8 +38,10 @@ type Redis struct {
 	Port     string `mapstructure:"port" json:"port" yaml:"port"`
 }
 
+// 系统配置
 type System struct {
-	Port    string `mapstructure:"port" json:"port" yaml:"port"`          //服务开启端口
+	Port string `mapstructure:"port" json:"port" yaml:"port"` //服务开启端口
+
 	LogPath string `mapstructure:"logPath" json:"logPath" yaml:"logPath"` //服务开启端口
 
 	Project Project `yaml:"project"`
