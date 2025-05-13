@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>接口文档</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+
+        .container {
+            display: flex;
+        }
+
+        .sidebar {
+            width: 280px;
+            background: #f5f5f5;
+            height: 100vh;
+            overflow-y: auto;
+            padding: 20px;
+            border-right: 1px solid #ddd;
+            position: fixed;
+        }
+
+        .sidebar a {
+            display: block;
+            margin-bottom: 8px;
+            text-decoration: none;
+            color: #333;
+            cursor: pointer;
+        }
+
+        .sidebar a:hover {
+            color: #1890ff;
+        }
+
+        .content {
+            margin-left: 300px;
+            padding: 20px;
+            flex: 1;
+        }
+
+        .api-block {
+            border: 1px solid #ddd;
+            padding: 16px;
+            margin-bottom: 30px;
+            background: #fff;
+            display: none;
+        }
+
+        .api-title {
+            font-weight: bold;
+            font-size: 16px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        table, th, td {
+            border: 1px solid #ccc;
+        }
+
+        th, td {
+            padding: 8px;
+            text-align: left;
+        }
+
+        textarea {
+            width: 100%;
+            font-family: monospace;
+            margin-top: 10px;
+            overflow: hidden;
+            resize: none;
+        }
+    </style>
+</head>
+<body>
+<!-- 切换逻辑 -->
+<script>
+    function showApi(id) {
+        const blocks = document.querySelectorAll(".api-block");
+        blocks.forEach(b => b.style.display = "none");
+        const current = document.getElementById("api-" + id);
+        if (current) current.style.display = "block";
+        autoResizeTextareas()
+    }
+
+    function autoResizeTextareas() {
+        const areas = document.querySelectorAll("textarea");
+        areas.forEach(area => {
+            area.style.height = "auto";
+            area.style.height = area.scrollHeight + "px";
+        });
+    }
+
+    window.onload = function () {
+        const first = document.querySelector(".api-block");
+        if (first) first.style.display = "block";
+        autoResizeTextareas();
+    }
+</script>
+
+<div class="container">
+    <div class="sidebar">
+        <h3>接口列表</h3>
+        {{range .}}
+        <a onclick="showApi('{{.ID}}')">{{.Name}}</a>
+        {{end}}
+    </div>
+
+    <div class="content">
+        <h1>接口文档</h1>
+        {{range .}}
+        <div class="api-block" id="api-{{.ID}}">
+            <div class="api-title">{{.Method}} {{.Path}}</div>
+            <div><b>名称:</b> {{.Name}}</div>
+            <div><b>权限:</b> {{.Permission}}</div>
+            <div><b>Handle:</b> {{.Handle}}</div>
+
+            {{with parseJson .ReqFields}}
+            <div><b>请求参数说明:</b>
+                <table>
+                    <tr>
+                        <th>参数</th>
+                        <th>类型</th>
+                        <th>描述</th>
+                    </tr>
+                    {{range .}}
+                    <tr>
+                        <td>{{.name}}</td>
+                        <td>{{.type}}</td>
+                        <td>{{.desc}}</td>
+                    </tr>
+                    {{end}}
+                </table>
+            </div>
+            {{end}}
+
+            {{if .ReqDemo}}
+            <div><b>请求示例:</b>
+                <textarea readonly>{{.ReqDemo}}</textarea>
+            </div>
+            {{end}}
+
+            {{with parseJson .ResFields}}
+            <div><b>返回参数说明:</b>
+                <table>
+                    <tr>
+                        <th>字段</th>
+                        <th>类型</th>
+                        <th>描述</th>
+                    </tr>
+                    {{range .}}
+                    <tr>
+                        <td>{{.name}}</td>
+                        <td>{{.type}}</td>
+                        <td>{{.desc}}</td>
+                    </tr>
+                    {{end}}
+                </table>
+            </div>
+            {{end}}
+
+            {{if .ResDemo}}
+            <div><b>返回示例:</b>
+                <textarea readonly>{{.ResDemo}}</textarea>
+            </div>
+            {{end}}
+        </div>
+        {{end}}
+    </div>
+</div>
+
+
+</body>
+</html>
