@@ -6,7 +6,7 @@ import (
 
 type Base struct {
 	ID           uint           `gorm:"primaryKey;column:ID;type:int unsigned" json:"ID"`
-	SysCompanyId uint           `gorm:"column:SYS_COMPANY_ID;type:int unsigned" json:"sysCompanyId"`
+	SysCompanyId uint           `gorm:"column:SYS_COMPANY_ID;type:int unsigned;default:0" json:"sysCompanyId"`
 	CreateBy     string         `gorm:"column:CREATE_BY;type:varchar(80)" json:"createBy"`
 	CreateTime   utils.JsonTime `gorm:"column:CREATE_TIME;type:datetime;not null;autoCreateTime" json:"createTime"`
 	UpdateBy     string         `gorm:"column:UPDATE_BY;type:varchar(80)" json:"updateBy"`

@@ -19,6 +19,7 @@ System:
         #LoginSessionTTL 登录有效期为 24 小时
         session-ttl: 24
 
+
     port: "0.0.0.0:9090"
 
     #默认分享url
@@ -49,5 +50,5 @@ oss:
 sms:
     accessKeyId: LTAI5tLQrtBBguoiqJf8y9dU
     accessKeySecret: gKhzy2z1arjpmpmCtGZetUcmLRD48X
-    signName: 身份验证
-    templateCode: SMS_485915037
+    signName: 先华软件
+    templateCode: SMS_485730103

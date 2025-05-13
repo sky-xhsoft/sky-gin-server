@@ -9,11 +9,14 @@
 package ecode
 
 const (
-	Success          = 0
-	ErrInvalidParam  = 10001
-	ErrUnauthorized  = 10002
-	ErrUserNotFound  = 10003
-	ErrPasswordWrong = 10004
+	Success              = 0
+	ErrInvalidParam      = 10001
+	ErrUnauthorized      = 10002
+	ErrUserNotFound      = 10003
+	ErrPasswordWrong     = 10004
+	ErrUserAlreadyExists = 10011
+	ErrInvalidCode       = 10012
+	ErrToken             = 10013
 
 	ErrTokenExpired = 20005
 	ErrTokenCreate  = 20006

@@ -15,6 +15,10 @@ var messages = map[int]string{
 	ErrUserNotFound:  "用户不存在",
 	ErrPasswordWrong: "密码错误",
 
+	ErrUserAlreadyExists: "用户已存在",
+	ErrInvalidCode:       "验证码错误",
+	ErrToken:             "生成 Token 失败",
+
 	ErrTokenExpired: "登录已过期",
 	ErrTokenCreate:  "token 生成失败",
 	ErrTokenEmpty:   "token 为空",
