@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>表单配置</title>
+    <style>
+        body {
+            font-family: Arial;
+            padding: 20px;
+        }
+
+        label {
+            display: block;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 6px;
+            margin-top: 5px;
+            box-sizing: border-box;
+        }
+
+        textarea {
+            font-family: monospace;
+            overflow: hidden;
+            resize: vertical;
+        }
+
+        .btn {
+            margin-top: 20px;
+            padding: 8px 16px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+<h1>{{if .SYS_TABLE.ID}}修改表单{{else}}新增表单{{end}}</h1>
+<div id="tableForm">
+    <input type="hidden" name="ID" value="{{.SYS_TABLE.ID}}">
+
+    <label>表名（NAME）</label>
+    <input type="text" name="NAME" value="{{.SYS_TABLE.Name}}">
+
+    <label>显示名称（DISPLAY_NAME）</label>
+    <input type="text" name="DISPLAY_NAME" value="{{.SYS_TABLE.DisplayName}}">
+
+    <label>表单规则（MASK）</label>
+    <input type="text" name="MASK" value="{{.SYS_TABLE.Mask}}">
+
+    <label>是否菜单（IS_MENU）</label>
+    <select name="IS_MENU">
+        <option value="Y" {{if eq .SYS_TABLE.IsMenu
+        "Y"}}selected{{end}}>是</option>
+        <option value="N" {{if eq .SYS_TABLE.IsMenu
+        "N"}}selected{{end}}>否</option>
+    </select>
+
+    <label>过滤条件（FILTER）</label>
+    <textarea name="FILTER" rows="2">{{.SYS_TABLE.Filter}}</textarea>
+
+    <label>扩展属性（PROPS, JSON）</label>
+    <textarea name="PROPS" rows="3">{{.SYS_TABLE.Props}}</textarea>
+
+    <label>备注（DESCRIPTION）</label>
+    <textarea name="DESCRIPTION" rows="3">{{.SYS_TABLE.Description}}</textarea>
+
+    <br>
+    <button type="button" class="btn" onclick="submitJson()">提交保存</button>
+</div>
+
+<script>
+    function submitJson() {
+        const data = {
+            ID: parseInt(document.querySelector("input[name='ID']").value) || 0,
+            NAME: document.querySelector("input[name='NAME']").value,
+            DISPLAY_NAME: document.querySelector("input[name='DISPLAY_NAME']").value,
+            MASK: document.querySelector("input[name='MASK']").value,
+            IS_MENU: document.querySelector("select[name='IS_MENU']").value,
+            FILTER: document.querySelector("textarea[name='FILTER']").value,
+            PROPS: document.querySelector("textarea[name='PROPS']").value,
+            DESCRIPTION: document.querySelector("textarea[name='DESCRIPTION']").value
+        };
+
+        fetch("/api/sys_table/save", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify(data)
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data && data.ID) {
+                    window.location.href = "/api/sys_table/edit?id=" + data.ID;
+                } else {
+                    alert("保存成功，但未返回 ID");
+                }
+            })
+            .catch(err => alert("提交失败：" + err));
+    }
+</script>
+</body>
+</html>
