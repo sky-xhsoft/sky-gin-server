@@ -32,6 +32,7 @@ func (h *SysTableHandler) HandlerName() string {
 func (h *SysTableHandler) SetOption(ctx *core.AppContext) {
 	h.db = ctx.DB
 	h.redis = ctx.Redis
+
 }
 
 // EditPage 渲染 /api/sys_table/edit 页面
