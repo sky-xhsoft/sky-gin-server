@@ -56,6 +56,16 @@ func fillMeta(c *gin.Context, model any, isCreate bool) {
 
 }
 
+func FillCreateMetaMap(c *gin.Context, data map[string]interface{}) {
+	user := getUser(c)
+	data["CREATE_BY"] = user.Username
+	data["CREATE_TIME"] = time.Now()
+	data["UPDATE_BY"] = user.Username
+	data["UPDATE_TIME"] = time.Now()
+	data["IS_ACTIVE"] = "Y"
+	data["SYS_COMPANY_ID"] = user.SysCompanyId
+}
+
 func getUser(c *gin.Context) *SysUser {
 	user, exists := c.Get("User")
 	if !exists {

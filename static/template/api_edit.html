@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>接口编辑</title>
+    <style>
+        body {
+            font-family: Arial;
+            padding: 20px;
+        }
+
+        label {
+            display: block;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 6px;
+            margin-top: 5px;
+            box-sizing: border-box;
+        }
+
+        textarea {
+            font-family: monospace;
+            overflow: hidden;
+            resize: vertical;
+        }
+
+        .btn {
+            margin-top: 20px;
+            padding: 8px 16px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+<h1>{{if .Api.ID}}修改接口{{else}}新增接口{{end}}</h1>
+<div id="apiForm">
+    <input type="hidden" name="ID" value="{{.Api.ID}}">
+
+    <label>名称</label>
+    <input type="text" name="NAME" value="{{.Api.Name}}">
+
+    <label>路径</label>
+    <input type="text" name="PATH" value="{{.Api.Path}}">
+
+    <label>请求方法</label>
+    <select name="METHOD">
+        {{range .Methods}}
+        <option value="{{.}}" {{if eq $.Api.Method .}}selected{{end}}>{{.}}</option>
+        {{end}}
+    </select>
+
+    <label>Handle</label>
+    <input type="text" name="HANDLE" value="{{.Api.Handle}}">
+
+    <label>权限级别</label>
+    <select name="PERMISSION">
+        {{range .Permissions}}
+        <option value="{{.Value}}" {{if eq $.Api.Permission .Value}}selected{{end}}>{{.Label}}</option>
+        {{end}}
+    </select>
+
+    <label>请求示例（JSON）</label>
+    <textarea name="REQDEMO" rows="5">{{.Api.ReqDemo}}</textarea>
+
+    <label>返回示例（JSON）</label>
+    <textarea name="RESDEMO" rows="5">{{.Api.ResDemo}}</textarea>
+
+    <label>请求字段说明（JSON数组）</label>
+    <textarea name="REQFIELDS" rows="6">{{.Api.ReqFields}}</textarea>
+    <button type="button" onclick="generateReqFields()">自动生成请求字段说明</button>
+
+    <label>返回字段说明（JSON数组）</label>
+    <textarea name="RESFIELDS" rows="6">{{.Api.ResFields}}</textarea>
+    <button type="button" onclick="generateResFields()">自动生成返回字段说明</button>
+
+    <br>
+    <button type="button" class="btn" onclick="submitJson()">提交保存</button>
+</div>
+
+<script>
+    function generateReqFields() {
+        const demo = document.querySelector("textarea[name='REQDEMO']").value;
+        generateFields(demo, "REQFIELDS");
+    }
+
+    function generateResFields() {
+        const demo = document.querySelector("textarea[name='RESDEMO']").value;
+        generateFields(demo, "RESFIELDS");
+    }
+
+    function generateFields(jsonStr, targetField) {
+        let json = {};
+        try {
+            json = JSON.parse(jsonStr);
+        } catch (e) {
+            alert("JSON 解析失败，请检查格式");
+            return;
+        }
+
+        const fields = Object.keys(json).map(key => {
+            return {
+                name: key,
+                type: typeof json[key],
+                desc: ""
+            };
+        });
+
+        document.querySelector(`textarea[name='${targetField}']`).value = JSON.stringify(fields, null, 2);
+    }
+
+    function submitJson() {
+        const data = {
+            ID: parseInt(document.querySelector("input[name='ID']").value) || 0,
+            NAME: document.querySelector("input[name='NAME']").value,
+            PATH: document.querySelector("input[name='PATH']").value,
+            METHOD: document.querySelector("select[name='METHOD']").value,
+            HANDLE: document.querySelector("input[name='HANDLE']").value,
+            PERMISSION: document.querySelector("select[name='PERMISSION']").value,
+            REQDEMO: document.querySelector("textarea[name='REQDEMO']").value,
+            RESDEMO: document.querySelector("textarea[name='RESDEMO']").value,
+            REQFIELDS: document.querySelector("textarea[name='REQFIELDS']").value,
+            RESFIELDS: document.querySelector("textarea[name='RESFIELDS']").value,
+        };
+
+        fetch("/api/save", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify(data)
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data && data.ID) {
+                    window.location.href = "/api/AddOrEdit?ID=" + data.ID;
+                } else {
+                    alert("保存成功，但未返回 ID");
+                }
+            })
+            .catch(err => alert("提交失败：" + err));
+    }
+</script>
+</body>
+</html>

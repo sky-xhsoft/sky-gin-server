@@ -15,10 +15,10 @@ type SysApi struct {
 	Method     string `gorm:"column:METHOD;type:varchar(10);not null"`                      // 方法（非空）
 	Handle     string `gorm:"column:HANDLE;type:varchar(255);not null"`                     // 处理函数（非空）
 	Permission string `gorm:"column:PERMISSION;type:varchar(2);not null"`
-	ReqDemo    string `gorm:"column:REQDEMO;type:text" json:"ReqDemo"`
-	ResDemo    string `gorm:"column:RESDEMO;type:text" json:"ResDemo"`
-	ReqFields  string `gorm:"column:REQFIELDS;type:text" json:"reqFields"`
-	ResFields  string `gorm:"column:RESFIELDS;type:text" json:"resFields"`
+	ReqDemo    string `gorm:"column:REQDEMO;type:text"`
+	ResDemo    string `gorm:"column:RESDEMO;type:text"`
+	ReqFields  string `gorm:"column:REQFIELDS;type:text"`
+	ResFields  string `gorm:"column:RESFIELDS;type:text"`
 }
 
 func (SysApi) TableName() string {

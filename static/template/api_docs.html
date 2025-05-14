@@ -121,7 +121,7 @@
             <div><b>权限:</b> {{.Permission}}</div>
             <div><b>Handle:</b> {{.Handle}}</div>
 
-            {{with parseJson .ReqFields}}
+            {{with parseJson .reqFields}}
             <div><b>请求参数说明:</b>
                 <table>
                     <tr>
@@ -140,13 +140,13 @@
             </div>
             {{end}}
 
-            {{if .ReqDemo}}
+            {{if .reqDemo}}
             <div><b>请求示例:</b>
-                <textarea readonly>{{.ReqDemo}}</textarea>
+                <textarea readonly>{{.reqDemo}}</textarea>
             </div>
             {{end}}
 
-            {{with parseJson .ResFields}}
+            {{with parseJson .resFields}}
             <div><b>返回参数说明:</b>
                 <table>
                     <tr>
@@ -165,9 +165,9 @@
             </div>
             {{end}}
 
-            {{if .ResDemo}}
+            {{if .resDemo}}
             <div><b>返回示例:</b>
-                <textarea readonly>{{.ResDemo}}</textarea>
+                <textarea readonly>{{.resDemo}}</textarea>
             </div>
             {{end}}
         </div>
